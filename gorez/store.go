@@ -13,8 +13,17 @@ type Tour struct {
 	Time time.Time
 }
 
+type CartItem struct {
+	ID       int
+	TourID   int
+	Quantity int
+}
+
 type Store interface {
 	ListOpenToursByCode() (map[string][]*Tour, error)
+	ListCartItems(cartID int) ([]*CartItem, error)
+	AddCartItem(cartID, tourID, quantity int) error
+	UpdateCartItem(cartID, itemID, quantity int) error
 }
 
 type RemoteStore struct {
@@ -48,4 +57,43 @@ func (s *RemoteStore) ListOpenToursByCode() (map[string][]*Tour, error) {
 		return nil, err
 	}
 	return toursByCode, nil
+}
+func (s *RemoteStore) ListCartItems(cartID int) ([]*CartItem, error) {
+	rows, err := s.db.Query("SELECT ItemPos, TourID, RiderCount "+
+		"FROM CartItems "+
+		"WHERE CartItems.CartID = ?",
+		cartID)
+	if err != nil {
+		return nil, err
+	}
+	var items []*CartItem
+	for rows.Next() {
+		var itemPos, tourID, riderCount int
+		if err := rows.Scan(&itemPos, &tourID, &riderCount); err != nil {
+			return nil, err
+		}
+		items = append(items, &CartItem{
+			ID:       itemPos,
+			TourID:   tourID,
+			Quantity: riderCount,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func (s *RemoteStore) AddCartItem(cartID, tourID, quantity int) error {
+	_, err := s.db.Exec(
+		"INSERT INTO CartItems (CartID, TourID, RiderCount) VALUES (?, ?, ?)",
+		cartID, tourID, quantity)
+	return err
+}
+
+func (s *RemoteStore) UpdateCartItem(cartID, itemID, quantity int) error {
+	_, err := s.db.Exec(
+		"UPDATE CartItems SET RiderCount = ? WHERE CartID = ? AND ItemPos = ?",
+		quantity, cartID, itemID)
+	return err
 }
