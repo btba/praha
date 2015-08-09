@@ -12,9 +12,9 @@
       <div class="jumbotron">
 	<h1>Shop</h1>
       </div>
-      <form action="/reservations/shoppost" method="POST">
-	<table class="table">
-	  {{range $code, $tours := .}}
+      <table class="table">
+	{{range $code, $tours := .}}
+	<form action="/reservations/shoppost" method="POST">
 	  <tr>
 	    <td>
 	      Tour {{$code}}
@@ -30,9 +30,9 @@
 	      <input class="btn btn-primary btn-sm" type="submit" value="Add to cart"/>
 	    </td>
 	  </tr>
-	  {{end}}
-	</table>
-      </form>
+	</form>
+	{{end}}
+      </table>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>

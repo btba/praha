@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"path"
 	"strconv"
+	"time"
 )
 
 var (
@@ -180,6 +181,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	rand.Seed(time.Now().UnixNano())
 	http.HandleFunc("/reservations/shop", server.HandleShop)
 	http.HandleFunc("/reservations/shoppost", server.HandleShopPost)
 	http.HandleFunc("/reservations/cart", server.HandleCart)
