@@ -58,6 +58,7 @@ func (s *RemoteStore) ListOpenToursByCode() (map[string][]*Tour, error) {
 	}
 	return toursByCode, nil
 }
+
 func (s *RemoteStore) ListCartItems(cartID int) ([]*CartItem, error) {
 	rows, err := s.db.Query("SELECT ItemPos, TourID, RiderCount "+
 		"FROM CartItems "+
