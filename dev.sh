@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Builds & runs development stack on OS X.
+# Builds images & runs on OS X, mounting local directories.
 
 if [ "$#" -ne 1 ]; then
     echo "Usage: $0 <bookings_dsn>"
