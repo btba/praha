@@ -11,12 +11,16 @@ import (
 	"path"
 	"strconv"
 	"time"
+
+	"github.com/gorilla/schema"
 )
 
 var (
 	port         = flag.Int("port", 8080, "port to run web server on")
 	bookingsDSN  = flag.String("bookings_dsn", "", "data source name for bookings database")
 	templatesDir = flag.String("templates_dir", "templates", "directory containing templates")
+
+	decoder = schema.NewDecoder()
 )
 
 const (
@@ -98,15 +102,22 @@ func (s *Server) HandleShop(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type ShopPostVars struct {
+	TourID int
+}
+
 func (s *Server) HandleShopPost(w http.ResponseWriter, r *http.Request) {
-	// POST /shoppost tourId=562
+	// POST /shoppost TourID=562
 	if r.Method != "POST" {
 		http.Error(w, "Method must be POST", http.StatusBadRequest)
 		return
 	}
-
-	tourID, err := strconv.Atoi(r.PostFormValue("tourID"))
-	if err != nil {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	var vars ShopPostVars
+	if err := decoder.Decode(&vars, r.PostForm); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -132,13 +143,13 @@ func (s *Server) HandleShopPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO: Check that tour has spots available.
-	if item, ok := findTourInCart(items, tourID); ok {
+	if item, ok := findTourInCart(items, vars.TourID); ok {
 		if err := s.store.UpdateCartItem(cartID, item.ID, item.Quantity+1); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	} else {
-		if err := s.store.AddCartItem(cartID, tourID, 1); err != nil {
+		if err := s.store.AddCartItem(cartID, vars.TourID, 1); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
