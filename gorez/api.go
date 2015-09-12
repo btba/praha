@@ -21,17 +21,17 @@ func (s *Server) HandleApiCartItems(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.Method {
 	case "PUT":
-		var quantity int
+		var quantity int32
 		if err := json.NewDecoder(r.Body).Decode(&quantity); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if err := s.store.UpdateCartItem(cartID, itemID, quantity); err != nil {
+		if err := s.store.UpdateCartItem(cartID, int32(itemID), quantity); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	case "DELETE":
-		if err := s.store.DeleteCartItem(cartID, itemID); err != nil {
+		if err := s.store.DeleteCartItem(cartID, int32(itemID)); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

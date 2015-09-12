@@ -8,31 +8,31 @@ import (
 )
 
 type Tour struct {
-	ID   int64
+	ID   int32
 	Code string
 	Time time.Time
 }
 
 type CartItem struct {
-	ID       int
-	TourID   int
-	Quantity int
+	ID       int32 // TODO: int64
+	TourID   int32
+	Quantity int32
 }
 
 type CartItemDetail struct {
 	CartItem
 	TourCode  string
 	TourTime  time.Time
-	TourPrice int
+	TourPrice float64 // TODO: int32
 }
 
 type Store interface {
 	ListOpenToursByCode() (map[string][]*Tour, error)
-	ListCartItems(cartID int) ([]*CartItem, error)
-	AddCartItem(cartID, tourID, quantity int) error
-	UpdateCartItem(cartID, itemID, quantity int) error
-	DeleteCartItem(cartID, itemID int) error
-	ListCartItemDetails(cartID int) ([]*CartItemDetail, error)
+	ListCartItems(cartID int32) ([]*CartItem, error)
+	AddCartItem(cartID, tourID, quantity int32) error
+	UpdateCartItem(cartID, itemID, quantity int32) error
+	DeleteCartItem(cartID, itemID int32) error
+	ListCartItemDetails(cartID int32) ([]*CartItemDetail, error)
 }
 
 type RemoteStore struct {
@@ -51,7 +51,7 @@ func (s *RemoteStore) ListOpenToursByCode() (map[string][]*Tour, error) {
 	toursByCode := make(map[string][]*Tour)
 	for rows.Next() {
 		var (
-			id   int64
+			id   int32
 			code sql.NullString // TODO: Make this non-nullable?
 			time time.Time
 		)
@@ -70,7 +70,7 @@ func (s *RemoteStore) ListOpenToursByCode() (map[string][]*Tour, error) {
 	return toursByCode, nil
 }
 
-func (s *RemoteStore) ListCartItems(cartID int) ([]*CartItem, error) {
+func (s *RemoteStore) ListCartItems(cartID int32) ([]*CartItem, error) {
 	rows, err := s.db.Query("SELECT ItemPos, TourID, RiderCount "+
 		"FROM CartItems "+
 		"WHERE CartItems.CartID = ?",
@@ -80,7 +80,11 @@ func (s *RemoteStore) ListCartItems(cartID int) ([]*CartItem, error) {
 	}
 	var items []*CartItem
 	for rows.Next() {
-		var itemPos, tourID, riderCount int
+		var (
+			itemPos    int32
+			tourID     int32
+			riderCount int32
+		)
 		if err := rows.Scan(&itemPos, &tourID, &riderCount); err != nil {
 			return nil, err
 		}
@@ -96,28 +100,28 @@ func (s *RemoteStore) ListCartItems(cartID int) ([]*CartItem, error) {
 	return items, nil
 }
 
-func (s *RemoteStore) AddCartItem(cartID, tourID, quantity int) error {
+func (s *RemoteStore) AddCartItem(cartID, tourID, quantity int32) error {
 	_, err := s.db.Exec(
 		"INSERT INTO CartItems (CartID, TourID, RiderCount) VALUES (?, ?, ?)",
 		cartID, tourID, quantity)
 	return err
 }
 
-func (s *RemoteStore) UpdateCartItem(cartID, itemID, quantity int) error {
+func (s *RemoteStore) UpdateCartItem(cartID, itemID, quantity int32) error {
 	_, err := s.db.Exec(
 		"UPDATE CartItems SET RiderCount = ? WHERE CartID = ? AND ItemPos = ?",
 		quantity, cartID, itemID)
 	return err
 }
 
-func (s *RemoteStore) DeleteCartItem(cartID, itemID int) error {
+func (s *RemoteStore) DeleteCartItem(cartID, itemID int32) error {
 	_, err := s.db.Exec(
 		"DELETE FROM CartItems WHERE CartID = ? AND ItemPos = ?",
 		cartID, itemID)
 	return err
 }
 
-func (s *RemoteStore) ListCartItemDetails(cartID int) ([]*CartItemDetail, error) {
+func (s *RemoteStore) ListCartItemDetails(cartID int32) ([]*CartItemDetail, error) {
 	rows, err := s.db.Query("SELECT CartItems.ItemPos, CartItems.TourID, CartItems.RiderCount, Master.TourCode, Master.TourDateTime, MasterTourInfo.Price "+
 		"FROM CartItems, Master, MasterTourInfo "+
 		"WHERE CartItems.CartID = ? AND CartItems.TourID = Master.TourID AND Master.TourCode = MasterTourInfo.ShortCode",
@@ -128,9 +132,9 @@ func (s *RemoteStore) ListCartItemDetails(cartID int) ([]*CartItemDetail, error)
 	var items []*CartItemDetail
 	for rows.Next() {
 		var (
-			itemPos    int
-			tourID     int
-			riderCount int
+			itemPos    int32
+			tourID     int32
+			riderCount int32
 			tourCode   string
 			tourTime   time.Time
 			tourPrice  float64
@@ -146,7 +150,7 @@ func (s *RemoteStore) ListCartItemDetails(cartID int) ([]*CartItemDetail, error)
 			},
 			TourCode:  tourCode,
 			TourTime:  tourTime,
-			TourPrice: int(100 * tourPrice),
+			TourPrice: tourPrice,
 		})
 	}
 	if err := rows.Err(); err != nil {

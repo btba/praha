@@ -10,14 +10,14 @@ const (
 	cartIDCookieName = "BTBACartID"
 )
 
-func newCartID() int {
+func newCartID() int32 {
 	// NB: Very small possibility of collision, so you would get an
 	// existing cart.  It's ok.
 	// TODO: Use an int64.
-	return rand.Int() & 0xFFFFFFFF
+	return rand.Int31() & 0x7FFFFFFF
 }
 
-func readCartID(r *http.Request) (int, bool) {
+func readCartID(r *http.Request) (int32, bool) {
 	cookie, err := r.Cookie(cartIDCookieName)
 	if err != nil {
 		return 0, false
@@ -26,13 +26,13 @@ func readCartID(r *http.Request) (int, bool) {
 	if err != nil {
 		return 0, false
 	}
-	return cartID, true
+	return int32(cartID), true
 }
 
-func writeCartID(w http.ResponseWriter, cartID int) {
+func writeCartID(w http.ResponseWriter, cartID int32) {
 	http.SetCookie(w, &http.Cookie{
 		Name:  cartIDCookieName,
-		Value: strconv.Itoa(cartID),
+		Value: strconv.FormatInt(int64(cartID), 10),
 		Path:  "/",
 	})
 }

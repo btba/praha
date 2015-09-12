@@ -5,7 +5,7 @@ import (
 )
 
 type ShopPostVars struct {
-	TourID int
+	TourID int32
 }
 
 func (s *Server) HandleShopPost(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +60,7 @@ func (s *Server) HandleShopPost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/reservations/cart", http.StatusSeeOther)
 }
 
-func findTourInCart(items []*CartItem, tourID int) (*CartItem, bool) {
+func findTourInCart(items []*CartItem, tourID int32) (*CartItem, bool) {
 	for _, item := range items {
 		if item.TourID == tourID {
 			return item, true
