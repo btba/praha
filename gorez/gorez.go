@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
@@ -30,7 +31,7 @@ const (
 func newCartID() int {
 	// NB: Very small possibility of collision, so you would get an
 	// existing cart.  It's ok.
-	// TODO: Use an int32?
+	// TODO: Use an int64.
 	return rand.Int() & 0xFFFFFFFF
 }
 
@@ -79,7 +80,7 @@ func NewServer(dsn string) (*Server, error) {
 }
 
 func (s *Server) HandleShop(w http.ResponseWriter, r *http.Request) {
-	// GET /shop
+	// GET /reservations/shop
 	if r.Method != "GET" {
 		http.Error(w, "Method must be GET", http.StatusBadRequest)
 		return
@@ -107,7 +108,7 @@ type ShopPostVars struct {
 }
 
 func (s *Server) HandleShopPost(w http.ResponseWriter, r *http.Request) {
-	// POST /shoppost TourID=562
+	// POST /reservations/shoppost TourID=562
 	if r.Method != "POST" {
 		http.Error(w, "Method must be POST", http.StatusBadRequest)
 		return
@@ -159,7 +160,7 @@ func (s *Server) HandleShopPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) HandleCart(w http.ResponseWriter, r *http.Request) {
-	// GET /cart
+	// GET /reservations/cart
 	if r.Method != "GET" {
 		http.Error(w, "Method must be GET", http.StatusBadRequest)
 		return
@@ -186,6 +187,41 @@ func (s *Server) HandleCart(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) HandleApiCartItems(w http.ResponseWriter, r *http.Request) {
+	// PUT    /reservations/api/cartitems/<itemID> <quantity>
+	// DELETE /reservations/api/cartitems/<itemID>
+	itemID, err := strconv.Atoi(r.URL.Path[len("/reservations/api/cartitems/"):])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	cartID, ok := readCartID(r)
+	if !ok {
+		http.Error(w, "No cart", http.StatusBadRequest)
+		return
+	}
+	switch r.Method {
+	case "PUT":
+		var quantity int
+		if err := json.NewDecoder(r.Body).Decode(&quantity); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := s.store.UpdateCartItem(cartID, itemID, quantity); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	case "DELETE":
+		if err := s.store.DeleteCartItem(cartID, itemID); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	default:
+		http.Error(w, "Method must be PUT or DELETE", http.StatusBadRequest)
+		return
+	}
+}
+
 func main() {
 	flag.Parse()
 	server, err := NewServer(*bookingsDSN)
@@ -196,5 +232,6 @@ func main() {
 	http.HandleFunc("/reservations/shop", server.HandleShop)
 	http.HandleFunc("/reservations/shoppost", server.HandleShopPost)
 	http.HandleFunc("/reservations/cart", server.HandleCart)
+	http.HandleFunc("/reservations/api/cartitems/", server.HandleApiCartItems)
 	http.ListenAndServe(fmt.Sprintf(":%d", *port), nil)
 }

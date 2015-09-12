@@ -24,6 +24,7 @@ type Store interface {
 	ListCartItems(cartID int) ([]*CartItem, error)
 	AddCartItem(cartID, tourID, quantity int) error
 	UpdateCartItem(cartID, itemID, quantity int) error
+	DeleteCartItem(cartID, itemID int) error
 }
 
 type RemoteStore struct {
@@ -96,5 +97,12 @@ func (s *RemoteStore) UpdateCartItem(cartID, itemID, quantity int) error {
 	_, err := s.db.Exec(
 		"UPDATE CartItems SET RiderCount = ? WHERE CartID = ? AND ItemPos = ?",
 		quantity, cartID, itemID)
+	return err
+}
+
+func (s *RemoteStore) DeleteCartItem(cartID, itemID int) error {
+	_, err := s.db.Exec(
+		"DELETE FROM CartItems WHERE CartID = ? AND ItemPos = ?",
+		cartID, itemID)
 	return err
 }
