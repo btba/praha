@@ -19,12 +19,20 @@ type CartItem struct {
 	Quantity int
 }
 
+type CartItemDetail struct {
+	CartItem
+	TourCode  string
+	TourTime  time.Time
+	TourPrice int
+}
+
 type Store interface {
 	ListOpenToursByCode() (map[string][]*Tour, error)
 	ListCartItems(cartID int) ([]*CartItem, error)
 	AddCartItem(cartID, tourID, quantity int) error
 	UpdateCartItem(cartID, itemID, quantity int) error
 	DeleteCartItem(cartID, itemID int) error
+	ListCartItemDetails(cartID int) ([]*CartItemDetail, error)
 }
 
 type RemoteStore struct {
@@ -42,9 +50,11 @@ func (s *RemoteStore) ListOpenToursByCode() (map[string][]*Tour, error) {
 	}
 	toursByCode := make(map[string][]*Tour)
 	for rows.Next() {
-		var id int64
-		var code sql.NullString
-		var time time.Time
+		var (
+			id   int64
+			code sql.NullString // TODO: Make this non-nullable?
+			time time.Time
+		)
 		if err := rows.Scan(&id, &code, &time); err != nil {
 			return nil, err
 		}
@@ -105,4 +115,42 @@ func (s *RemoteStore) DeleteCartItem(cartID, itemID int) error {
 		"DELETE FROM CartItems WHERE CartID = ? AND ItemPos = ?",
 		cartID, itemID)
 	return err
+}
+
+func (s *RemoteStore) ListCartItemDetails(cartID int) ([]*CartItemDetail, error) {
+	rows, err := s.db.Query("SELECT CartItems.ItemPos, CartItems.TourID, CartItems.RiderCount, Master.TourCode, Master.TourDateTime, MasterTourInfo.Price "+
+		"FROM CartItems, Master, MasterTourInfo "+
+		"WHERE CartItems.CartID = ? AND CartItems.TourID = Master.TourID AND Master.TourCode = MasterTourInfo.ShortCode",
+		cartID)
+	if err != nil {
+		return nil, err
+	}
+	var items []*CartItemDetail
+	for rows.Next() {
+		var (
+			itemPos    int
+			tourID     int
+			riderCount int
+			tourCode   string
+			tourTime   time.Time
+			tourPrice  float64
+		)
+		if err := rows.Scan(&itemPos, &tourID, &riderCount, &tourCode, &tourTime, &tourPrice); err != nil {
+			return nil, err
+		}
+		items = append(items, &CartItemDetail{
+			CartItem: CartItem{
+				ID:       itemPos,
+				TourID:   tourID,
+				Quantity: riderCount,
+			},
+			TourCode:  tourCode,
+			TourTime:  tourTime,
+			TourPrice: int(100 * tourPrice),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

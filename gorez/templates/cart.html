@@ -17,14 +17,14 @@
       <table class="table">
 	<tr><th>Description</th><th>Qty</th><th></th><th></th></tr>
 	{{range .}}
-	<tr id="items.{{.ID}}">
-	  <td>Tour {{.TourID}}</td>
+	<tr id="items.{{.CartItem.ID}}">
+	  <td>Tour {{.TourCode}} ({{.TourTime.Format "2 January 2006"}})</td>
 	  <td>
-	    <input id="items.{{.ID}}.quantity"
-		   value="{{.Quantity}}"/>
+	    <input id="items.{{.CartItem.ID}}.quantity"
+		   value="{{.CartItem.Quantity}}"/>
 	  </td>
-	  <td><button onclick="updateItem('{{.ID}}')">Update</button></td>
-	  <td><button onclick="removeItem('{{.ID}}')">Remove</button></td>
+	  <td><button onclick="updateItem('{{.CartItem.ID}}')">Update</button></td>
+	  <td><button onclick="removeItem('{{.CartItem.ID}}')">Remove</button></td>
 	</tr>
 	{{end}}
       </table>

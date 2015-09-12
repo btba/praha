@@ -18,7 +18,7 @@ func (s *Server) HandleCart(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "No cart", http.StatusBadRequest)
 		return
 	}
-	items, err := s.store.ListCartItems(cartID)
+	items, err := s.store.ListCartItemDetails(cartID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
