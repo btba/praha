@@ -15,10 +15,11 @@
       </div>
       <div id="alert" class="alert alert-danger" role="alert" style="display: none"></div>
       <table class="table">
-	<tr><th>Description</th><th>Qty</th><th></th><th></th></tr>
+	<tr><th>Description</th><th>Price</th><th>Qty</th><th></th><th></th></tr>
 	{{range .}}
 	<tr id="items.{{.CartItem.ID}}">
 	  <td>Tour {{.TourCode}} ({{.TourTime.Format "2 January 2006"}})</td>
+	  <td>{{ printf "$%.2f" .TourPrice}}</td>
 	  <td>
 	    <input id="items.{{.CartItem.ID}}.quantity"
 		   value="{{.CartItem.Quantity}}"/>
