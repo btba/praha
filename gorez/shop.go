@@ -19,7 +19,7 @@ func (s *Server) HandleShop(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	tmpl, err := template.ParseFiles(path.Join(*templatesDir, "shop.html"))
+	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "shop.html"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -19,7 +19,7 @@ func (s *Server) HandleShopPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var vars ShopPostVars
-	if err := decoder.Decode(&vars, r.PostForm); err != nil {
+	if err := s.decoder.Decode(&vars, r.PostForm); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

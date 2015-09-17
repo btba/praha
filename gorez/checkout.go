@@ -50,7 +50,7 @@ func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var vars CheckoutVars
-	if err := decoder.Decode(&vars, r.PostForm); err != nil {
+	if err := s.decoder.Decode(&vars, r.PostForm); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -78,7 +78,7 @@ func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	tmpl, err := template.ParseFiles(path.Join(*templatesDir, "checkout.html"))
+	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "checkout.html"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

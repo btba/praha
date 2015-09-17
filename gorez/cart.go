@@ -23,7 +23,7 @@ func (s *Server) HandleCart(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	tmpl, err := template.ParseFiles(path.Join(*templatesDir, "cart.html"))
+	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "cart.html"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

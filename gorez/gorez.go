@@ -16,15 +16,15 @@ var (
 	port         = flag.Int("port", 8080, "port to run web server on")
 	bookingsDSN  = flag.String("bookings_dsn", "", "data source name for bookings database")
 	templatesDir = flag.String("templates_dir", "templates", "directory containing templates")
-
-	decoder = schema.NewDecoder()
 )
 
 type Server struct {
-	store Store
+	store        Store
+	templatesDir string
+	decoder      *schema.Decoder
 }
 
-func NewServer(dsn string) (*Server, error) {
+func NewServer(dsn, templatesDir string) (*Server, error) {
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
@@ -32,12 +32,16 @@ func NewServer(dsn string) (*Server, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
-	return &Server{store: &RemoteStore{db}}, nil
+	return &Server{
+		store:        &RemoteStore{db},
+		templatesDir: templatesDir,
+		decoder:      schema.NewDecoder(),
+	}, nil
 }
 
 func main() {
 	flag.Parse()
-	server, err := NewServer(*bookingsDSN)
+	server, err := NewServer(*bookingsDSN, *templatesDir)
 	if err != nil {
 		log.Fatal(err)
 	}
