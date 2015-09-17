@@ -22,7 +22,7 @@ func readCartID(r *http.Request) (int32, bool) {
 	if err != nil {
 		return 0, false
 	}
-	cartID, err := strconv.Atoi(cookie.Value)
+	cartID, err := strconv.ParseInt(cookie.Value, 16, 32)
 	if err != nil {
 		return 0, false
 	}
@@ -32,7 +32,7 @@ func readCartID(r *http.Request) (int32, bool) {
 func writeCartID(w http.ResponseWriter, cartID int32) {
 	http.SetCookie(w, &http.Cookie{
 		Name:  cartIDCookieName,
-		Value: strconv.FormatInt(int64(cartID), 10),
+		Value: strconv.FormatInt(int64(cartID), 16),
 		Path:  "/",
 	})
 }
