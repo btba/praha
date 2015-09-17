@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -11,6 +12,11 @@ type Tour struct {
 	ID   int32
 	Code string
 	Time time.Time
+}
+
+type TourDetail struct {
+	Tour
+	Price float64 // TODO: int32
 }
 
 type CartItem struct {
@@ -28,6 +34,8 @@ type CartItemDetail struct {
 
 type Store interface {
 	ListOpenToursByCode() (map[string][]*Tour, error)
+	GetTourDetailsByID(tourIDs []int32) (map[int32]*TourDetail, error)
+
 	ListCartItems(cartID int32) ([]*CartItem, error)
 	AddCartItem(cartID, tourID, quantity int32) error
 	UpdateCartItem(cartID, itemID, quantity int32) error
@@ -68,6 +76,54 @@ func (s *RemoteStore) ListOpenToursByCode() (map[string][]*Tour, error) {
 		return nil, err
 	}
 	return toursByCode, nil
+}
+
+func (s *RemoteStore) GetTourDetailsByID(tourIDs []int32) (map[int32]*TourDetail, error) {
+	if len(tourIDs) == 0 {
+		return nil, errors.New("Need at least one tour ID")
+	}
+	qmarks := "(?"
+	for i := 1; i < len(tourIDs); i++ {
+		qmarks += ", ?"
+	}
+	qmarks += ")"
+
+	var tourIDargs []interface{}
+	for _, x := range tourIDs {
+		tourIDargs = append(tourIDargs, x)
+	}
+	rows, err := s.db.Query(
+		"SELECT Master.TourID, Master.TourCode, Master.TourDateTime, MasterTourInfo.Price "+
+			"FROM Master, MasterTourInfo "+
+			"WHERE Master.TourID IN "+qmarks+" AND Master.TourCode = MasterTourInfo.ShortCode",
+		tourIDargs...)
+	if err != nil {
+		return nil, err
+	}
+	tourDetails := make(map[int32]*TourDetail)
+	for rows.Next() {
+		var (
+			id    int32
+			code  sql.NullString // TODO: Make this non-nullable?
+			time  time.Time
+			price float64
+		)
+		if err := rows.Scan(&id, &code, &time, &price); err != nil {
+			return nil, err
+		}
+		tourDetails[id] = &TourDetail{
+			Tour: Tour{
+				ID:   id,
+				Code: code.String,
+				Time: time,
+			},
+			Price: price,
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return tourDetails, nil
 }
 
 func (s *RemoteStore) ListCartItems(cartID int32) ([]*CartItem, error) {

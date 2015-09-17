@@ -6,29 +6,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cart</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
-    <script src="/cart.js"></script>
   </head>
   <body>
     <div class="container">
       <div class="jumbotron">
 	<h1>Cart</h1>
       </div>
-      <div id="alert" class="alert alert-danger" role="alert" style="display: none"></div>
-      <table class="table">
-	<tr><th>Description</th><th>Price</th><th>Qty</th><th></th><th></th></tr>
-	{{range .}}
-	<tr id="items.{{.CartItem.ID}}">
-	  <td>Tour {{.TourCode}} ({{.TourTime.Format "2 January 2006"}})</td>
-	  <td>{{ printf "$%.2f" .TourPrice}}</td>
-	  <td>
-	    <input id="items.{{.CartItem.ID}}.quantity"
-		   value="{{.CartItem.Quantity}}"/>
-	  </td>
-	  <td><button onclick="updateItem('{{.CartItem.ID}}')">Update</button></td>
-	  <td><button onclick="removeItem('{{.CartItem.ID}}')">Remove</button></td>
-	</tr>
-	{{end}}
-      </table>
+      <form action="/reservations/checkout" method="POST">
+	<table class="table">
+	  <tr><th>Description</th><th>Price</th><th>Qty</th></tr>
+	  {{range $i, $_ := .}}
+	  <tr>
+	    <td>Tour {{.TourCode}} ({{.TourTime.Format "2 January 2006"}})</td>
+	    <td>{{printf "$%.2f" .TourPrice}}</td>
+	    <td>
+	      <input type="hidden"
+		     name="Items.{{$i}}.TourID"
+		     value="{{.CartItem.TourID}}"/>
+	      <input type="text"
+		     name="Items.{{$i}}.Quantity"
+		     value="{{.CartItem.Quantity}}"/>
+	    </td>
+	  </tr>
+	  {{end}}
+	</table>
+	<button type="submit">Checkout</button>
+      </form>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>

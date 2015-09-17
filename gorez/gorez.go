@@ -46,5 +46,6 @@ func main() {
 	http.HandleFunc("/reservations/shoppost", server.HandleShopPost)
 	http.HandleFunc("/reservations/cart", server.HandleCart)
 	http.HandleFunc("/reservations/api/cartitems/", server.HandleApiCartItems)
+	http.HandleFunc("/reservations/checkout", server.HandleCheckout)
 	http.ListenAndServe(fmt.Sprintf(":%d", *port), nil)
 }
