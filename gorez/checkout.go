@@ -19,7 +19,8 @@ type TourQuantity struct {
 
 // CheckoutData is the data passed to the template.
 type CheckoutData struct {
-	Items []*CheckoutItem
+	Items     []*CheckoutItem
+	StripeKey template.JSStr
 }
 
 func (c *CheckoutData) Total() float64 { // TODO: int32
@@ -78,12 +79,16 @@ func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	data := &CheckoutData{
+		Items:     checkoutItems,
+		StripeKey: template.JSStr(s.stripeKey),
+	}
 	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "checkout.html"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := tmpl.Execute(w, &CheckoutData{checkoutItems}); err != nil {
+	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
