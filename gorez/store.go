@@ -32,6 +32,11 @@ type CartItemDetail struct {
 	TourPrice float64 // TODO: int32
 }
 
+type OrderItem struct {
+	TourID   int32
+	Quantity int32
+}
+
 type Store interface {
 	ListOpenToursByCode() (map[string][]*Tour, error)
 	GetTourDetailsByID(tourIDs []int32) (map[int32]*TourDetail, error)
@@ -41,6 +46,9 @@ type Store interface {
 	UpdateCartItem(cartID, itemID, quantity int32) error
 	DeleteCartItem(cartID, itemID int32) error
 	ListCartItemDetails(cartID int32) ([]*CartItemDetail, error)
+
+	CreateOrder(name, email, mobile, hotel string, items []*OrderItem) (int32, error)
+	UpdateOrderPaymentRecorded(orderID int32) error
 }
 
 type RemoteStore struct {
@@ -213,4 +221,48 @@ func (s *RemoteStore) ListCartItemDetails(cartID int32) ([]*CartItemDetail, erro
 		return nil, err
 	}
 	return items, nil
+}
+
+func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, name, email, hotel, mobile string, items []*OrderItem) (int32, error) {
+	result, err := tx.Exec(
+		"INSERT INTO OrderMain (CustName, CustEmail, Hotel, Mobile, DatePlaced) VALUES (?, ?, ?, ?, ?)",
+		name, email, hotel, mobile, time.Now())
+	if err != nil {
+		return 0, err
+	}
+	orderID, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	for i, item := range items {
+		_, err := tx.Exec(
+			"INSERT INTO OrderItems (OrderNum, ItemNum, TourID, Riders) VALUES (?, ?, ?, ?)",
+			orderID, i, item.TourID, item.Quantity)
+		if err != nil {
+			return 0, err
+		}
+	}
+	return int32(orderID), nil
+}
+
+func (s *RemoteStore) CreateOrder(name, email, hotel, mobile string, items []*OrderItem) (int32, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	orderID, err := s.prepareCreateOrder(tx, name, email, hotel, mobile, items)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return orderID, nil
+}
+
+func (s *RemoteStore) UpdateOrderPaymentRecorded(orderID int32) error {
+	_, err := s.db.Exec(
+		"UPDATE OrderMain SET Completed = true WHERE OrderNum = ?", orderID)
+	return err
 }

@@ -9,7 +9,7 @@ import (
 
 // CheckoutVars represents the form inputs.
 type CheckoutVars struct {
-	Items []*TourQuantity
+	Items []*OrderItem
 }
 
 // CheckoutData is the data passed to the template.

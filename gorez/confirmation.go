@@ -12,9 +12,11 @@ import (
 
 // ConfirmationVars represents the form inputs.
 type ConfirmationVars struct {
-	Items       []*TourQuantity
+	Items       []*OrderItem
 	Name        string
 	Email       string
+	Hotel       string
+	Mobile      string
 	StripeToken string
 }
 
@@ -65,6 +67,13 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 	// Poor man's rounding computation.  Converts float64(13.57) to uint64(1357).
 	stripeAmount := uint64(total*100 + 0.1)
 
+	// Add order to database.
+	orderID, err := s.store.CreateOrder(vars.Name, vars.Email, vars.Hotel, vars.Mobile, vars.Items)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	// Charge to Stripe.
 	stripe.Key = s.stripeSecretKey
 	ch, err := charge.New(&stripe.ChargeParams{
@@ -73,6 +82,12 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		Source:   &stripe.SourceParams{Token: vars.StripeToken},
 	})
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Update order in database to record payment.
+	if err := s.store.UpdateOrderPaymentRecorded(orderID); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
