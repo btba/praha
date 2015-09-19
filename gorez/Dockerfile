@@ -10,6 +10,7 @@ ADD . /go/src/github.com/btba/praha/gorez
 # either manually or with a tool like "godep".)
 RUN go get github.com/go-sql-driver/mysql
 RUN go get github.com/gorilla/schema
+RUN go get github.com/stripe/stripe-go
 RUN go install github.com/btba/praha/gorez
 
 COPY templates /gorez/templates

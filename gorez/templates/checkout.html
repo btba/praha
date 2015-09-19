@@ -43,19 +43,27 @@
       <div class="jumbotron">
 	<h1>Checkout</h1>
       </div>
-      <table class="table">
-	<tr><th>Description</th><th>Price</th><th>Qty</th><th>Amount</th></tr>
-	{{range .Items}}
-	<tr>
-	  <td>Tour {{.TourDetail.Tour.Code}} ({{.TourDetail.Time.Format "2 January 2006"}})</td>
-	  <td>{{printf "$%.2f" .TourDetail.Price}}</td>
-	  <td>{{.Quantity}}</td>
-	  <td>{{printf "$%.2f" .Amount}}</td>
-	</tr>
-	{{end}}
-	<tr><th></th><th></th><th>Total</th><th>{{printf "$%.2f" .Total}}</th></tr>
-      </table>
       <form class="form-horizontal" action="/reservations/confirmation" method="POST" id="payment-form">
+	<table class="table">
+	  <tr><th>Description</th><th>Price</th><th>Qty</th><th>Amount</th></tr>
+	  {{range $i, $_ := .Items}}
+	  <tr>
+	    <td>Tour {{.TourDetail.Tour.Code}} ({{.TourDetail.Time.Format "2 January 2006"}})</td>
+	    <td>{{printf "$%.2f" .TourDetail.Price}}</td>
+	    <td>
+	      <input type="hidden"
+		     name="Items.{{$i}}.TourID"
+		     value="{{.TourDetail.Tour.ID}}"/>
+	      <input type="hidden"
+		     name="Items.{{$i}}.Quantity"
+		     value="{{.Quantity}}"/>
+	      {{.Quantity}}
+	    </td>
+	    <td>{{printf "$%.2f" .Amount}}</td>
+	  </tr>
+	  {{end}}
+	  <tr><th></th><th></th><th>Total</th><th>{{printf "$%.2f" .Total}}</th></tr>
+	</table>
 	<!-- TODO: Better error display. -->
 	<span class="payment-errors"></span>
 	<div class="form-group">

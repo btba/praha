@@ -12,11 +12,6 @@ type CheckoutVars struct {
 	Items []*TourQuantity
 }
 
-type TourQuantity struct {
-	TourID   int32
-	Quantity int32
-}
-
 // CheckoutData is the data passed to the template.
 type CheckoutData struct {
 	Items                []*CheckoutItem
