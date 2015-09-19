@@ -19,8 +19,8 @@ type TourQuantity struct {
 
 // CheckoutData is the data passed to the template.
 type CheckoutData struct {
-	Items     []*CheckoutItem
-	StripeKey template.JSStr
+	Items                []*CheckoutItem
+	StripePublishableKey template.JSStr
 }
 
 func (c *CheckoutData) Total() float64 { // TODO: int32
@@ -80,8 +80,8 @@ func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := &CheckoutData{
-		Items:     checkoutItems,
-		StripeKey: template.JSStr(s.stripeKey),
+		Items:                checkoutItems,
+		StripePublishableKey: template.JSStr(s.stripePublishableKey),
 	}
 	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "checkout.html"))
 	if err != nil {

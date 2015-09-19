@@ -17,7 +17,8 @@ COPY templates /gorez/templates
 # Run the outyet command by default when the container starts.
 ENTRYPOINT /go/bin/gorez \
   --bookings_dsn=${BOOKINGS_DSN} \
-  --stripe_key=${STRIPE_KEY} \
+  --stripe_secret_key=${STRIPE_SECRET_KEY} \
+  --stripe_publishable_key=${STRIPE_PUBLISHABLE_KEY} \
   --templates_dir=/gorez/templates
 
 # Document that the service listens on port 8080.

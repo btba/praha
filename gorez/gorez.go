@@ -13,20 +13,22 @@ import (
 )
 
 var (
-	port         = flag.Int("port", 8080, "port to run web server on")
-	bookingsDSN  = flag.String("bookings_dsn", "", "data source name for bookings database")
-	stripeKey    = flag.String("stripe_key", "", "Stripe key to embed in Javascript")
-	templatesDir = flag.String("templates_dir", "templates", "directory containing templates")
+	port                 = flag.Int("port", 8080, "port to run web server on")
+	bookingsDSN          = flag.String("bookings_dsn", "", "data source name for bookings database")
+	stripeSecretKey      = flag.String("stripe_secret_key", "", "Stripe key used by server")
+	stripePublishableKey = flag.String("stripe_publishable_key", "", "Stripe key to embed in Javascript")
+	templatesDir         = flag.String("templates_dir", "templates", "directory containing templates")
 )
 
 type Server struct {
-	store        Store
-	stripeKey    string
-	templatesDir string
-	decoder      *schema.Decoder
+	store                Store
+	stripeSecretKey      string
+	stripePublishableKey string
+	templatesDir         string
+	decoder              *schema.Decoder
 }
 
-func NewServer(dsn, stripeKey, templatesDir string) (*Server, error) {
+func NewServer(dsn, stripeSecretKey, stripePublishableKey, templatesDir string) (*Server, error) {
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
@@ -35,16 +37,17 @@ func NewServer(dsn, stripeKey, templatesDir string) (*Server, error) {
 		return nil, err
 	}
 	return &Server{
-		store:        &RemoteStore{db},
-		stripeKey:    stripeKey,
-		templatesDir: templatesDir,
-		decoder:      schema.NewDecoder(),
+		store:                &RemoteStore{db},
+		stripeSecretKey:      stripeSecretKey,
+		stripePublishableKey: stripePublishableKey,
+		templatesDir:         templatesDir,
+		decoder:              schema.NewDecoder(),
 	}, nil
 }
 
 func main() {
 	flag.Parse()
-	server, err := NewServer(*bookingsDSN, *stripeKey, *templatesDir)
+	server, err := NewServer(*bookingsDSN, *stripeSecretKey, *stripePublishableKey, *templatesDir)
 	if err != nil {
 		log.Fatal(err)
 	}
