@@ -20,7 +20,7 @@ type TourDetail struct {
 }
 
 type CartItem struct {
-	ID       int32 // TODO: int64
+	ID       int32
 	TourID   int32
 	Quantity int32
 }
@@ -41,11 +41,11 @@ type Store interface {
 	ListOpenToursByCode() (map[string][]*Tour, error)
 	GetTourDetailsByID(tourIDs []int32) (map[int32]*TourDetail, error)
 
-	ListCartItems(cartID int32) ([]*CartItem, error)
-	AddCartItem(cartID, tourID, quantity int32) error
-	UpdateCartItem(cartID, itemID, quantity int32) error
-	DeleteCartItem(cartID, itemID int32) error
-	ListCartItemDetails(cartID int32) ([]*CartItemDetail, error)
+	ListCartItems(cartID int64) ([]*CartItem, error)
+	AddCartItem(cartID int64, tourID, quantity int32) error
+	UpdateCartItem(cartID int64, itemID, quantity int32) error
+	DeleteCartItem(cartID int64, itemID int32) error
+	ListCartItemDetails(cartID int64) ([]*CartItemDetail, error)
 
 	CreateOrder(name, email, mobile, hotel string, items []*OrderItem) (int32, error)
 	UpdateOrderPaymentRecorded(orderID int32) error
@@ -134,7 +134,7 @@ func (s *RemoteStore) GetTourDetailsByID(tourIDs []int32) (map[int32]*TourDetail
 	return tourDetails, nil
 }
 
-func (s *RemoteStore) ListCartItems(cartID int32) ([]*CartItem, error) {
+func (s *RemoteStore) ListCartItems(cartID int64) ([]*CartItem, error) {
 	rows, err := s.db.Query("SELECT ItemPos, TourID, RiderCount "+
 		"FROM CartItems "+
 		"WHERE CartItems.CartID = ?",
@@ -164,28 +164,28 @@ func (s *RemoteStore) ListCartItems(cartID int32) ([]*CartItem, error) {
 	return items, nil
 }
 
-func (s *RemoteStore) AddCartItem(cartID, tourID, quantity int32) error {
+func (s *RemoteStore) AddCartItem(cartID int64, tourID, quantity int32) error {
 	_, err := s.db.Exec(
 		"INSERT INTO CartItems (CartID, TourID, RiderCount) VALUES (?, ?, ?)",
 		cartID, tourID, quantity)
 	return err
 }
 
-func (s *RemoteStore) UpdateCartItem(cartID, itemID, quantity int32) error {
+func (s *RemoteStore) UpdateCartItem(cartID int64, itemID, quantity int32) error {
 	_, err := s.db.Exec(
 		"UPDATE CartItems SET RiderCount = ? WHERE CartID = ? AND ItemPos = ?",
 		quantity, cartID, itemID)
 	return err
 }
 
-func (s *RemoteStore) DeleteCartItem(cartID, itemID int32) error {
+func (s *RemoteStore) DeleteCartItem(cartID int64, itemID int32) error {
 	_, err := s.db.Exec(
 		"DELETE FROM CartItems WHERE CartID = ? AND ItemPos = ?",
 		cartID, itemID)
 	return err
 }
 
-func (s *RemoteStore) ListCartItemDetails(cartID int32) ([]*CartItemDetail, error) {
+func (s *RemoteStore) ListCartItemDetails(cartID int64) ([]*CartItemDetail, error) {
 	rows, err := s.db.Query("SELECT CartItems.ItemPos, CartItems.TourID, CartItems.RiderCount, Master.TourCode, Master.TourDateTime, MasterTourInfo.Price "+
 		"FROM CartItems, Master, MasterTourInfo "+
 		"WHERE CartItems.CartID = ? AND CartItems.TourID = Master.TourID AND Master.TourCode = MasterTourInfo.ShortCode",

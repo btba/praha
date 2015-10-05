@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -10,29 +11,28 @@ const (
 	cartIDCookieName = "BTBACartID"
 )
 
-func newCartID() int32 {
+func newCartID() int64 {
 	// NB: Very small possibility of collision, so you would get an
 	// existing cart.  It's ok.
-	// TODO: Use an int64.
-	return rand.Int31() & 0x7FFFFFFF
+	return rand.Int63()
 }
 
-func readCartID(r *http.Request) (int32, bool) {
+func readCartID(r *http.Request) (int64, bool) {
 	cookie, err := r.Cookie(cartIDCookieName)
 	if err != nil {
 		return 0, false
 	}
-	cartID, err := strconv.ParseInt(cookie.Value, 16, 32)
+	cartID, err := strconv.ParseInt(cookie.Value, 16, 64)
 	if err != nil {
 		return 0, false
 	}
-	return int32(cartID), true
+	return cartID, true
 }
 
-func writeCartID(w http.ResponseWriter, cartID int32) {
+func writeCartID(w http.ResponseWriter, cartID int64) {
 	http.SetCookie(w, &http.Cookie{
 		Name:  cartIDCookieName,
-		Value: strconv.FormatInt(int64(cartID), 16),
+		Value: fmt.Sprintf("%016x", cartID),
 		Path:  "/",
 	})
 }
