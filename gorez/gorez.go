@@ -10,11 +10,13 @@ import (
 	"time"
 
 	"github.com/gorilla/schema"
+	"github.com/sendgrid/sendgrid-go"
 )
 
 var (
 	port                 = flag.Int("port", 8080, "port to run web server on")
 	bookingsDSN          = flag.String("bookings_dsn", "", "data source name for bookings database")
+	sendgridKey          = flag.String("sendgrid_key", "", "SendGrid API key")
 	stripeSecretKey      = flag.String("stripe_secret_key", "", "Stripe key used by server")
 	stripePublishableKey = flag.String("stripe_publishable_key", "", "Stripe key to embed in Javascript")
 	templatesDir         = flag.String("templates_dir", "templates", "directory containing templates")
@@ -22,13 +24,14 @@ var (
 
 type Server struct {
 	store                Store
+	sendgridClient       *sendgrid.SGClient
 	stripeSecretKey      string
 	stripePublishableKey string
 	templatesDir         string
 	decoder              *schema.Decoder
 }
 
-func NewServer(dsn, stripeSecretKey, stripePublishableKey, templatesDir string) (*Server, error) {
+func NewServer(dsn, sendgridKey, stripeSecretKey, stripePublishableKey, templatesDir string) (*Server, error) {
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
@@ -38,6 +41,7 @@ func NewServer(dsn, stripeSecretKey, stripePublishableKey, templatesDir string) 
 	}
 	return &Server{
 		store:                &RemoteStore{db},
+		sendgridClient:       sendgrid.NewSendGridClientWithApiKey(sendgridKey),
 		stripeSecretKey:      stripeSecretKey,
 		stripePublishableKey: stripePublishableKey,
 		templatesDir:         templatesDir,
@@ -47,7 +51,7 @@ func NewServer(dsn, stripeSecretKey, stripePublishableKey, templatesDir string) 
 
 func main() {
 	flag.Parse()
-	server, err := NewServer(*bookingsDSN, *stripeSecretKey, *stripePublishableKey, *templatesDir)
+	server, err := NewServer(*bookingsDSN, *sendgridKey, *stripeSecretKey, *stripePublishableKey, *templatesDir)
 	if err != nil {
 		log.Fatal(err)
 	}

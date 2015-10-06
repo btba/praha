@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"path"
 
+	"github.com/sendgrid/sendgrid-go"
 	"github.com/stripe/stripe-go"
 	"github.com/stripe/stripe-go/charge"
 )
@@ -64,8 +66,8 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		}
 		total += float64(item.Quantity) * tourDetail.Price
 	}
-	// Poor man's rounding computation.  Converts float64(13.57) to uint64(1357).
-	stripeAmount := uint64(total*100 + 0.1)
+	// Convert float64(13.57) to uint64(1357).
+	stripeAmount := uint64(total*100 + 0.5)
 
 	// Add order to database.
 	orderID, err := s.store.CreateOrder(vars.Name, vars.Email, vars.Hotel, vars.Mobile, vars.Items)
@@ -92,6 +94,12 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Email the customer.
+	if err := s.emailCustomer(&vars); err != nil {
+		log.Print(err)
+	}
+
+	// Render confirmation page.
 	data := &ConfirmationData{
 		Charge:        ch,
 		DisplayAmount: fmt.Sprintf("%d.%02d", ch.Amount/100, ch.Amount%100),
@@ -105,4 +113,19 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (s *Server) emailCustomer(vars *ConfirmationVars) error {
+	m := sendgrid.NewMail()
+	if err := m.AddTo(vars.Email); err != nil {
+		return err
+	}
+	m.AddToName(vars.Name)
+	m.SetSubject("Bike the Big Apple confirmation")
+	m.SetText("Testing testing 123")
+	if err := m.SetFrom("reservations@bikethebigapple.com"); err != nil {
+		return err
+	}
+	m.SetFromName("Bike the Big Apple Reservations")
+	return s.sendgridClient.Send(m)
 }
