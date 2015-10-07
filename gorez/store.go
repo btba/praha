@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 )
 
 type Tour struct {
@@ -16,7 +16,7 @@ type Tour struct {
 
 type TourDetail struct {
 	Tour
-	Price float64 // TODO: int32
+	Price float64
 }
 
 type CartItem struct {
@@ -29,7 +29,7 @@ type CartItemDetail struct {
 	CartItem
 	TourCode  string
 	TourTime  time.Time
-	TourPrice float64 // TODO: int32
+	TourPrice float64
 }
 
 type OrderItem struct {
@@ -68,7 +68,7 @@ func (s *RemoteStore) ListOpenToursByCode() (map[string][]*Tour, error) {
 	for rows.Next() {
 		var (
 			id   int32
-			code sql.NullString // TODO: Make this non-nullable?
+			code sql.NullString
 			time time.Time
 		)
 		if err := rows.Scan(&id, &code, &time); err != nil {
@@ -112,9 +112,9 @@ func (s *RemoteStore) GetTourDetailsByID(tourIDs []int32) (map[int32]*TourDetail
 	for rows.Next() {
 		var (
 			id    int32
-			code  sql.NullString // TODO: Make this non-nullable?
-			time  time.Time
-			price float64
+			code  string
+			time  mysql.NullTime
+			price sql.NullFloat64
 		)
 		if err := rows.Scan(&id, &code, &time, &price); err != nil {
 			return nil, err
@@ -122,10 +122,10 @@ func (s *RemoteStore) GetTourDetailsByID(tourIDs []int32) (map[int32]*TourDetail
 		tourDetails[id] = &TourDetail{
 			Tour: Tour{
 				ID:   id,
-				Code: code.String,
-				Time: time,
+				Code: code,
+				Time: time.Time,
 			},
-			Price: price,
+			Price: price.Float64,
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -200,8 +200,8 @@ func (s *RemoteStore) ListCartItemDetails(cartID int64) ([]*CartItemDetail, erro
 			tourID     int32
 			riderCount int32
 			tourCode   string
-			tourTime   time.Time
-			tourPrice  float64
+			tourTime   mysql.NullTime
+			tourPrice  sql.NullFloat64
 		)
 		if err := rows.Scan(&itemPos, &tourID, &riderCount, &tourCode, &tourTime, &tourPrice); err != nil {
 			return nil, err
@@ -213,8 +213,8 @@ func (s *RemoteStore) ListCartItemDetails(cartID int64) ([]*CartItemDetail, erro
 				Quantity: riderCount,
 			},
 			TourCode:  tourCode,
-			TourTime:  tourTime,
-			TourPrice: tourPrice,
+			TourTime:  tourTime.Time,
+			TourPrice: tourPrice.Float64,
 		})
 	}
 	if err := rows.Err(); err != nil {
