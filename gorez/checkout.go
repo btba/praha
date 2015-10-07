@@ -18,7 +18,7 @@ type CheckoutData struct {
 	StripePublishableKey template.JSStr
 }
 
-func (c *CheckoutData) Total() float64 { // TODO: int32
+func (c *CheckoutData) Total() float64 {
 	total := 0.0
 	for _, item := range c.Items {
 		total += item.Amount()
@@ -31,7 +31,7 @@ type CheckoutItem struct {
 	TourDetail *TourDetail
 }
 
-func (c *CheckoutItem) Amount() float64 { // TODO: int32
+func (c *CheckoutItem) Amount() float64 {
 	return float64(c.Quantity) * c.TourDetail.Price
 }
 

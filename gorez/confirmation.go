@@ -43,7 +43,6 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	// TODO: Validate name & email.
 
 	// Look up requested tours.
 	var tourIDs []int32
@@ -57,7 +56,7 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Compute total.
-	var total float64 // TODO: uint32
+	var total float64
 	for _, item := range vars.Items {
 		tourDetail, ok := tourDetails[item.TourID]
 		if !ok {
