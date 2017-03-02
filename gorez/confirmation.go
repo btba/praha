@@ -8,6 +8,7 @@ import (
 	"path"
 
 	"github.com/sendgrid/sendgrid-go"
+	"github.com/sendgrid/sendgrid-go/helpers/mail"
 	"github.com/stripe/stripe-go"
 	"github.com/stripe/stripe-go/charge"
 )
@@ -115,16 +116,15 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) emailCustomer(vars *ConfirmationVars) error {
-	m := sendgrid.NewMail()
-	if err := m.AddTo(vars.Email); err != nil {
-		return err
-	}
-	m.AddToName(vars.Name)
-	m.SetSubject("Bike the Big Apple confirmation")
-	m.SetText("Testing testing 123")
-	if err := m.SetFrom("reservations@bikethebigapple.com"); err != nil {
-		return err
-	}
-	m.SetFromName("Bike the Big Apple Reservations")
-	return s.sendgridClient.Send(m)
+	from := mail.NewEmail("Bike the Big Apple Reservations", "reservations@bikethebigapple.com")
+	subject := "Bike the Big Apple confirmation"
+	to := mail.NewEmail(vars.Name, vars.Email)
+	content := mail.NewContent("text/plain", "Testing testing 123")
+	m := mail.NewV3MailInit(from, subject, to, content)
+
+	request := sendgrid.GetRequest(s.sendgridKey, "/v3/mail/send", "https://api.sendgrid.com")
+	request.Method = "POST"
+	request.Body = mail.GetRequestBody(m)
+	_, err := sendgrid.API(request)
+	return err
 }

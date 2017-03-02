@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/schema"
-	"github.com/sendgrid/sendgrid-go"
 )
 
 var (
@@ -24,7 +23,7 @@ var (
 
 type Server struct {
 	store                Store
-	sendgridClient       *sendgrid.SGClient
+	sendgridKey          string
 	stripeSecretKey      string
 	stripePublishableKey string
 	templatesDir         string
@@ -41,7 +40,7 @@ func NewServer(dsn, sendgridKey, stripeSecretKey, stripePublishableKey, template
 	}
 	return &Server{
 		store:                &RemoteStore{db},
-		sendgridClient:       sendgrid.NewSendGridClientWithApiKey(sendgridKey),
+		sendgridKey:          sendgridKey,
 		stripeSecretKey:      stripeSecretKey,
 		stripePublishableKey: stripePublishableKey,
 		templatesDir:         templatesDir,
