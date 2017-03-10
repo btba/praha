@@ -4,7 +4,8 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Checkout</title>
+    <title>Bike the Big Apple - Checkout</title>
+    <link rel="shortcut icon" href="https://bikethebigapple.com/images/ui/favicon.png"/>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
     <script type="text/javascript" src="https://js.stripe.com/v2/"></script>
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
@@ -12,115 +13,200 @@
       // This identifies your website in the createToken call below
       Stripe.setPublishableKey({{.StripePublishableKey}});
       var stripeResponseHandler = function(status, response) {
-	var $form = $('#payment-form');
-	if (response.error) {
-	  // Show the errors on the form
-	  $form.find('.payment-errors').text(response.error.message);
-	  $form.find('button').prop('disabled', false);
-	} else {
-	  // token contains id, last4, and card type
-	  var token = response.id;
-	  // Insert the token into the form so it gets submitted to the server
-	  $form.append($('<input type="hidden" name="StripeToken" />').val(token));
-	  // and re-submit
-	  $form.get(0).submit();
-	}
+        var $form = $('#payment-form');
+        if (response.error) {
+          // Show the errors on the form
+          $form.find('.payment-errors').text(response.error.message);
+          $form.find('.payment-errors-row').show();
+          $form.find('button').prop('disabled', false);
+        } else {
+          // token contains id, last4, and card type
+          var token = response.id;
+          // Insert the token into the form so it gets submitted to the server
+          $form.append($('<input type="hidden" name="StripeToken" />').val(token));
+          // and re-submit
+          $form.get(0).submit();
+        }
       };
       jQuery(function($) {
-	$('#payment-form').submit(function(e) {
-	  var $form = $(this);
-	  // Disable the submit button to prevent repeated clicks
-	  $form.find('button').prop('disabled', true);
-	  Stripe.card.createToken($form, stripeResponseHandler);
-	  // Prevent the form from submitting with the default action
-	  return false;
-	});
+        $('#payment-form').submit(function(e) {
+          var $form = $(this);
+          // Disable the submit button to prevent repeated clicks
+          $form.find('button').prop('disabled', true);
+          Stripe.card.createToken($form, stripeResponseHandler);
+          // Prevent the form from submitting with the default action
+          return false;
+        });
       });
+
+      var numRidersChanged = function(n, price) {
+        total = n * price;
+        c = document.getElementById('riders').childNodes;
+        for (i = 0; i < c.length; i++) {
+          if (c[i].className == 'form-group') {
+            if (n == 0) {
+              c[i].style.display = 'none';
+            } else {
+              c[i].style.display = null;
+              n--;
+            }
+          }
+        }
+        document.getElementById('total').innerHTML = '$' + total.toFixed(2);
+        document.getElementById('quotedTotal').value = total
+      }
     </script>
   </head>
-  <body>
+  <body onload="numRidersChanged(1, {{.TourDetail.Price}})">
     <div class="container">
       <div class="jumbotron">
-	<h1>Checkout</h1>
+        <h1>Bike the Big Apple &ndash; Checkout</h1>
       </div>
-      <form class="form-horizontal" action="/reservations/confirmation" method="POST" id="payment-form">
-	<table class="table">
-	  <tr><th>Description</th><th>Price</th><th>Qty</th><th>Amount</th></tr>
-	  {{range $i, $_ := .Items}}
-	  <tr>
-	    <td>Tour {{.TourDetail.Tour.Code}} ({{.TourDetail.Time.Format "2 January 2006"}})</td>
-	    <td>{{printf "$%.2f" .TourDetail.Price}}</td>
-	    <td>
-	      <input type="hidden"
-		     name="Items.{{$i}}.TourID"
-		     value="{{.TourDetail.Tour.ID}}"/>
-	      <input type="hidden"
-		     name="Items.{{$i}}.Quantity"
-		     value="{{.Quantity}}"/>
-	      {{.Quantity}}
-	    </td>
-	    <td>{{printf "$%.2f" .Amount}}</td>
-	  </tr>
+      <form class="form-horizontal" action="/checkout/confirmation" method="POST" id="payment-form">
+        <input type="hidden" name="TourID" value="{{.TourDetail.ID}}"/>
+        <input type="hidden" name="QuotedTotal" id="quotedTotal"/>
+        <div class="form-group">
+          <label class="col-sm-2 control-label">Tour</label>
+          <div class="col-sm-6">
+            <p class="form-control-static">{{.TourDetail.Code}} &ndash; {{.TourDetail.LongName}}</p>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="col-sm-2 control-label">Date &amp; time</label>
+          <div class="col-sm-6">
+            <p class="form-control-static">{{.TourDetail.Time.Format "Monday, _2 January 2006 at 3:04 pm"}}</p>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="col-sm-2 control-label">Price</label>
+          <div class="col-sm-6">
+            <p class="form-control-static">{{printf "$%.2f" .TourDetail.Price}}</p>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="inputNumRiders" class="col-sm-2 control-label">Number of riders</label>
+          <div class="col-sm-6">
+            <select class="form-control" id="inputNumRiders" name="NumRiders" onchange="numRidersChanged(parseInt(this.value), {{.TourDetail.Price}});">
+	      {{range .NumRidersOptions}}
+              <option value="{{.}}">{{.}}</option>
+	      {{end}}
+            </select>
+          </div>
+        </div>
+        <div id="riders">
+	  {{range .NumRidersOptions}}
+          <div class="form-group" style="display: none;">
+            <label for="inputTmp" class="col-sm-2 control-label">Rider #{{.}} height</label>
+            <div class="col-sm-6">
+              <select class="form-control" name="RiderHeights">
+                <option value="0">-- select height --</option> <!-- use "0" so gorilla decodes it -->
+                <option value="1">less than 4&prime;08&Prime; (less than 142 cm)</option>
+                <option value="56">4&prime;08&Prime; (142 cm)</option>
+                <option value="57">4&prime;09&Prime; (145 cm)</option>
+                <option value="58">4&prime;10&Prime; (147 cm)</option>
+                <option value="59">4&prime;11&Prime; (150 cm)</option>
+                <option value="60">5&prime;00&Prime; (152 cm)</option>
+                <option value="61">5&prime;01&Prime; (155 cm)</option>
+                <option value="62">5&prime;02&Prime; (157 cm)</option>
+                <option value="63">5&prime;03&Prime; (160 cm)</option>
+                <option value="64">5&prime;04&Prime; (163 cm)</option>
+                <option value="65">5&prime;05&Prime; (165 cm)</option>
+                <option value="66">5&prime;06&Prime; (168 cm)</option>
+                <option value="67">5&prime;07&Prime; (170 cm)</option>
+                <option value="68">5&prime;08&Prime; (173 cm)</option>
+                <option value="69">5&prime;09&Prime; (175 cm)</option>
+                <option value="70">5&prime;10&Prime; (178 cm)</option>
+                <option value="71">5&prime;11&Prime; (180 cm)</option>
+                <option value="72">6&prime;00&Prime; (183 cm)</option>
+                <option value="73">6&prime;01&Prime; (185 cm)</option>
+                <option value="74">6&prime;02&Prime; (188 cm)</option>
+                <option value="75">6&prime;03&Prime; (191 cm)</option>
+                <option value="76">6&prime;04&Prime; (193 cm)</option>
+                <option value="77">6&prime;05&Prime; (196 cm)</option>
+                <option value="78">6&prime;06&Prime; (198 cm)</option>
+                <option value="100">more than 6&prime;06&Prime; (more than 198 cm)</option>
+              </select>
+            </div>
+          </div>
 	  {{end}}
-	  <tr><th></th><th></th><th>Total</th><th>{{printf "$%.2f" .Total}}</th></tr>
-	</table>
-	<!-- TODO: Better error display. -->
-	<span class="payment-errors"></span>
-	<div class="form-group">
-	  <label for="inputName" class="col-sm-2 control-label">Name</label>
-	  <div class="col-sm-6">
-	    <input type="text" class="form-control" id="inputName" placeholder="Name" name="Name">
+        </div>
+        <div class="form-group">
+          <label class="col-sm-2 control-label">Total</label>
+          <div class="col-sm-6">
+            <p class="form-control-static" id="total"></p>
+          </div>
+        </div>
+        <hr>
+        <div class="form-group">
+          <label for="inputName" class="col-sm-2 control-label">Name</label>
+          <div class="col-sm-6">
+            <input type="text" class="form-control" id="inputName" name="Name">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="inputNumber" class="col-sm-2 control-label">Card number</label>
+          <div class="col-sm-6">
+            <input type="number" class="form-control" id="inputNumber" placeholder="" data-stripe="number">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="inputCVC" class="col-sm-2 control-label">CVC</label>
+          <div class="col-sm-6">
+            <input type="number" class="form-control" id="inputCVC" placeholder="" data-stripe="cvc">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="inputExpMonth" class="col-sm-2 control-label">Expiration month</label>
+          <div class="col-sm-6">
+            <input type="number" class="form-control" id="inputExpMonth" placeholder="" data-stripe="exp-month">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="inputExpYear" class="col-sm-2 control-label">Expiration year</label>
+          <div class="col-sm-6">
+            <input type="number" class="form-control" id="inputExpYear" placeholder="" data-stripe="exp-year">
+          </div>
+        </div>
+        <hr>
+        <div class="form-group">
+          <label for="inputEmail" class="col-sm-2 control-label">Email</label>
+          <div class="col-sm-6">
+            <input type="email" class="form-control" id="inputEmail" placeholder="" name="Email">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="inputMobile" class="col-sm-2 control-label">Mobile phone</label>
+          <div class="col-sm-6">
+            <input type="tel" class="form-control" id="inputMobile" name="Mobile">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="inputHotel" class="col-sm-2 control-label">Hotel</label>
+          <div class="col-sm-6">
+            <input type="text" class="form-control" id="inputHotel" name="Hotel">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="inputMisc" class="col-sm-2 control-label">Anything special you'd like us to know?</label>
+          <div class="col-sm-6">
+            <textarea class="form-control" rows="3" id="inputMisc" name="Misc"></textarea>
+          </div>
+        </div>
+	<div class="row payment-errors-row" style="display: none;">
+          <div class="col-sm-6 col-sm-offset-2">
+	    <div class="alert alert-danger" role="alert">
+              <span class="payment-errors"></span>
+	    </div>
 	  </div>
 	</div>
-	<div class="form-group">
-	  <label for="inputEmail" class="col-sm-2 control-label">Email</label>
-	  <div class="col-sm-6">
-	    <input type="email" class="form-control" id="inputEmail" placeholder="praha@sink.sendgrid.net" name="Email">
-	  </div>
-	</div>
-	<div class="form-group">
-	  <label for="inputHotel" class="col-sm-2 control-label">Hotel</label>
-	  <div class="col-sm-6">
-	    <input type="text" class="form-control" id="inputHotel" placeholder="Hotel" name="Hotel">
-	  </div>
-	</div>
-	<div class="form-group">
-	  <label for="inputMobile" class="col-sm-2 control-label">Mobile</label>
-	  <div class="col-sm-6">
-	    <input type="tel" class="form-control" id="inputMobile" placeholder="Mobile" name="Mobile">
-	  </div>
-	</div>
-	<div class="form-group">
-	  <label for="inputNumber" class="col-sm-2 control-label">Card Number</label>
-	  <div class="col-sm-6">
-	    <input type="number" class="form-control" id="inputNumber" placeholder="eg: 4242424242424242" data-stripe="number">
-	  </div>
-	</div>
-	<div class="form-group">
-	  <label for="inputCVC" class="col-sm-2 control-label">CVC</label>
-	  <div class="col-sm-6">
-	    <input type="number" class="form-control" id="inputCVC" placeholder="eg: 123" data-stripe="cvc">
-	  </div>
-	</div>
-	<div class="form-group">
-	  <label for="inputExpMonth" class="col-sm-2 control-label">Expiration Month</label>
-	  <div class="col-sm-6">
-	    <input type="number" class="form-control" id="inputExpMonth" placeholder="eg: 01" data-stripe="exp-month">
-	  </div>
-	</div>
-	<div class="form-group">
-	  <label for="inputExpYear" class="col-sm-2 control-label">Expiration Year</label>
-	  <div class="col-sm-6">
-	    <input type="number" class="form-control" id="inputExpYear" placeholder="eg: 2016" data-stripe="exp-year">
-	  </div>
-	</div>
-	<div class="row">
-	  <div class="col-sm-6 col-sm-offset-2">
-	    <button type="submit" class="btn btn-primary">Submit Payment</button>
-	  </div>
-	</div>
+        <div class="row">
+          <div class="col-sm-6 col-sm-offset-2">
+            <button type="submit" class="btn btn-primary">Complete purchase</button>
+          </div>
+        </div>
       </form>
     </div>
+    <br><br><br><br>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
   </body>

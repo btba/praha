@@ -55,11 +55,7 @@ func main() {
 		log.Fatal(err)
 	}
 	rand.Seed(time.Now().UnixNano())
-	http.HandleFunc("/reservations/shop", server.HandleShop)
-	http.HandleFunc("/reservations/shoppost", server.HandleShopPost)
-	http.HandleFunc("/reservations/cart", server.HandleCart)
-	http.HandleFunc("/reservations/api/cartitems/", server.HandleApiCartItems)
-	http.HandleFunc("/reservations/checkout", server.HandleCheckout)
-	http.HandleFunc("/reservations/confirmation", server.HandleConfirmation)
+	http.HandleFunc("/checkout", server.HandleCheckout)
+	http.HandleFunc("/checkout/confirmation", server.HandleConfirmation)
 	http.ListenAndServe(fmt.Sprintf(":%d", *port), nil)
 }

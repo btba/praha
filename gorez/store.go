@@ -2,7 +2,8 @@ package main
 
 import (
 	"database/sql"
-	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -16,217 +17,74 @@ type Tour struct {
 
 type TourDetail struct {
 	Tour
-	Price float64
-}
-
-type CartItem struct {
-	ID       int32
-	TourID   int32
-	Quantity int32
-}
-
-type CartItemDetail struct {
-	CartItem
-	TourCode  string
-	TourTime  time.Time
-	TourPrice float64
-}
-
-type OrderItem struct {
-	TourID   int32
-	Quantity int32
+	LongName string
+	Price    float64
 }
 
 type Store interface {
-	ListOpenToursByCode() (map[string][]*Tour, error)
-	GetTourDetailsByID(tourIDs []int32) (map[int32]*TourDetail, error)
-
-	ListCartItems(cartID int64) ([]*CartItem, error)
-	AddCartItem(cartID int64, tourID, quantity int32) error
-	UpdateCartItem(cartID int64, itemID, quantity int32) error
-	DeleteCartItem(cartID int64, itemID int32) error
-	ListCartItemDetails(cartID int64) ([]*CartItemDetail, error)
-
-	CreateOrder(name, email, mobile, hotel string, items []*OrderItem) (int32, error)
+	GetTourDetailByID(tourID int32) (*TourDetail, bool, error)
+	CreateOrder(tourID int32, heights []int, total uint64, name, email, mobile, hotel, misc string) (int32, error)
 	UpdateOrderPaymentRecorded(orderID int32) error
+	UpdateOrderConfirmationSent(orderID int32) error
 }
 
 type RemoteStore struct {
 	db *sql.DB
 }
 
-func (s *RemoteStore) ListOpenToursByCode() (map[string][]*Tour, error) {
-	rows, err := s.db.Query("SELECT TourID, TourCode, TourDateTime "+
-		"FROM Master "+
-		"WHERE TourDateTime >= ? AND Public <> 0 AND Cancelled = 0 AND Deleted = 0 "+
-		"ORDER BY TourDateTime ASC",
-		time.Now().Format("2006-01-02 15:04:05"))
-	if err != nil {
-		return nil, err
-	}
-	toursByCode := make(map[string][]*Tour)
-	for rows.Next() {
-		var (
-			id   int32
-			code sql.NullString
-			time time.Time
-		)
-		if err := rows.Scan(&id, &code, &time); err != nil {
-			return nil, err
-		}
-		toursByCode[code.String] = append(toursByCode[code.String], &Tour{
-			ID:   id,
-			Code: code.String,
-			Time: time,
-		})
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return toursByCode, nil
-}
-
-func (s *RemoteStore) GetTourDetailsByID(tourIDs []int32) (map[int32]*TourDetail, error) {
-	if len(tourIDs) == 0 {
-		return nil, errors.New("Need at least one tour ID")
-	}
-	qmarks := "(?"
-	for i := 1; i < len(tourIDs); i++ {
-		qmarks += ", ?"
-	}
-	qmarks += ")"
-
-	var tourIDargs []interface{}
-	for _, x := range tourIDs {
-		tourIDargs = append(tourIDargs, x)
-	}
+func (s *RemoteStore) GetTourDetailByID(tourID int32) (*TourDetail, bool, error) {
 	rows, err := s.db.Query(
-		"SELECT Master.TourID, Master.TourCode, Master.TourDateTime, MasterTourInfo.Price "+
+		"SELECT Master.TourID, Master.TourCode, Master.TourDateTime, MasterTourInfo.LongName, MasterTourInfo.Price "+
 			"FROM Master, MasterTourInfo "+
-			"WHERE Master.TourID IN "+qmarks+" AND Master.TourCode = MasterTourInfo.ShortCode",
-		tourIDargs...)
+			"WHERE Master.TourID = ? AND Master.TourCode = MasterTourInfo.ShortCode",
+		tourID)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	tourDetails := make(map[int32]*TourDetail)
+	var tourDetail *TourDetail
 	for rows.Next() {
 		var (
-			id    int32
-			code  string
-			time  mysql.NullTime
-			price sql.NullFloat64
+			id       int32
+			code     string
+			time     mysql.NullTime
+			longName sql.NullString
+			price    sql.NullFloat64
 		)
-		if err := rows.Scan(&id, &code, &time, &price); err != nil {
-			return nil, err
+		if err := rows.Scan(&id, &code, &time, &longName, &price); err != nil {
+			return nil, false, err
 		}
-		tourDetails[id] = &TourDetail{
+		tourDetail = &TourDetail{
 			Tour: Tour{
 				ID:   id,
 				Code: code,
 				Time: time.Time,
 			},
-			Price: price.Float64,
+			LongName: longName.String,
+			Price:    price.Float64,
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return tourDetails, nil
+	return tourDetail, tourDetail != nil, nil
 }
 
-func (s *RemoteStore) ListCartItems(cartID int64) ([]*CartItem, error) {
-	rows, err := s.db.Query("SELECT ItemPos, TourID, RiderCount "+
-		"FROM CartItems "+
-		"WHERE CartItems.CartID = ?",
-		cartID)
-	if err != nil {
-		return nil, err
-	}
-	var items []*CartItem
-	for rows.Next() {
-		var (
-			itemPos    int32
-			tourID     int32
-			riderCount int32
-		)
-		if err := rows.Scan(&itemPos, &tourID, &riderCount); err != nil {
-			return nil, err
-		}
-		items = append(items, &CartItem{
-			ID:       itemPos,
-			TourID:   tourID,
-			Quantity: riderCount,
-		})
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func priceString(total uint64) string {
+	return fmt.Sprintf("%d", total)
 }
 
-func (s *RemoteStore) AddCartItem(cartID int64, tourID, quantity int32) error {
-	_, err := s.db.Exec(
-		"INSERT INTO CartItems (CartID, TourID, RiderCount) VALUES (?, ?, ?)",
-		cartID, tourID, quantity)
-	return err
-}
-
-func (s *RemoteStore) UpdateCartItem(cartID int64, itemID, quantity int32) error {
-	_, err := s.db.Exec(
-		"UPDATE CartItems SET RiderCount = ? WHERE CartID = ? AND ItemPos = ?",
-		quantity, cartID, itemID)
-	return err
-}
-
-func (s *RemoteStore) DeleteCartItem(cartID int64, itemID int32) error {
-	_, err := s.db.Exec(
-		"DELETE FROM CartItems WHERE CartID = ? AND ItemPos = ?",
-		cartID, itemID)
-	return err
-}
-
-func (s *RemoteStore) ListCartItemDetails(cartID int64) ([]*CartItemDetail, error) {
-	rows, err := s.db.Query("SELECT CartItems.ItemPos, CartItems.TourID, CartItems.RiderCount, Master.TourCode, Master.TourDateTime, MasterTourInfo.Price "+
-		"FROM CartItems, Master, MasterTourInfo "+
-		"WHERE CartItems.CartID = ? AND CartItems.TourID = Master.TourID AND Master.TourCode = MasterTourInfo.ShortCode",
-		cartID)
-	if err != nil {
-		return nil, err
+func heightsString(heights []int) string {
+	var s []string
+	for _, h := range heights {
+		s = append(s, fmt.Sprintf("%d", h))
 	}
-	var items []*CartItemDetail
-	for rows.Next() {
-		var (
-			itemPos    int32
-			tourID     int32
-			riderCount int32
-			tourCode   string
-			tourTime   mysql.NullTime
-			tourPrice  sql.NullFloat64
-		)
-		if err := rows.Scan(&itemPos, &tourID, &riderCount, &tourCode, &tourTime, &tourPrice); err != nil {
-			return nil, err
-		}
-		items = append(items, &CartItemDetail{
-			CartItem: CartItem{
-				ID:       itemPos,
-				TourID:   tourID,
-				Quantity: riderCount,
-			},
-			TourCode:  tourCode,
-			TourTime:  tourTime.Time,
-			TourPrice: tourPrice.Float64,
-		})
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+	return strings.Join(s, ", ")
 }
 
-func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, name, email, hotel, mobile string, items []*OrderItem) (int32, error) {
+func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, tourID int32, heights []int, total uint64, name, email, mobile, hotel, misc string) (int32, error) {
 	result, err := tx.Exec(
-		"INSERT INTO OrderMain (CustName, CustEmail, Hotel, Mobile, DatePlaced) VALUES (?, ?, ?, ?, ?)",
-		name, email, hotel, mobile, time.Now())
+		"INSERT INTO OrderMain (CustName, CustEmail, Hotel, Mobile, DatePlaced, Message, Heights) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		name, email, hotel, mobile, time.Now(), misc, heightsString(heights))
 	if err != nil {
 		return 0, err
 	}
@@ -234,23 +92,21 @@ func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, name, email, hotel, mobile 
 	if err != nil {
 		return 0, err
 	}
-	for i, item := range items {
-		_, err := tx.Exec(
-			"INSERT INTO OrderItems (OrderNum, ItemNum, TourID, Riders) VALUES (?, ?, ?, ?)",
-			orderID, i, item.TourID, item.Quantity)
-		if err != nil {
-			return 0, err
-		}
+	_, err = tx.Exec(
+		"INSERT INTO OrderItems (OrderNum, TourID, Riders, Price) VALUES (?, ?, ?, ?)",
+		orderID, tourID, len(heights), priceString(total))
+	if err != nil {
+		return 0, err
 	}
 	return int32(orderID), nil
 }
 
-func (s *RemoteStore) CreateOrder(name, email, hotel, mobile string, items []*OrderItem) (int32, error) {
+func (s *RemoteStore) CreateOrder(tourID int32, heights []int, total uint64, name, email, mobile, hotel, misc string) (int32, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return 0, err
 	}
-	orderID, err := s.prepareCreateOrder(tx, name, email, hotel, mobile, items)
+	orderID, err := s.prepareCreateOrder(tx, tourID, heights, total, name, email, mobile, hotel, misc)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
@@ -264,5 +120,11 @@ func (s *RemoteStore) CreateOrder(name, email, hotel, mobile string, items []*Or
 func (s *RemoteStore) UpdateOrderPaymentRecorded(orderID int32) error {
 	_, err := s.db.Exec(
 		"UPDATE OrderMain SET Completed = true WHERE OrderNum = ?", orderID)
+	return err
+}
+
+func (s *RemoteStore) UpdateOrderConfirmationSent(orderID int32) error {
+	_, err := s.db.Exec(
+		"UPDATE OrderItems SET ConfirmationSent = 1 WHERE OrderNum = ?", orderID)
 	return err
 }

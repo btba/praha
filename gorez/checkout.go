@@ -7,75 +7,52 @@ import (
 	"path"
 )
 
+const (
+	maxRiders = 12
+)
+
 // CheckoutVars represents the form inputs.
 type CheckoutVars struct {
-	Items []*OrderItem
+	TourID int32 `schema:"TourId"`
 }
 
 // CheckoutData is the data passed to the template.
 type CheckoutData struct {
-	Items                []*CheckoutItem
+	TourDetail           *TourDetail
+	NumRidersOptions     []int
 	StripePublishableKey template.JSStr
 }
 
-func (c *CheckoutData) Total() float64 {
-	total := 0.0
-	for _, item := range c.Items {
-		total += item.Amount()
-	}
-	return total
-}
-
-type CheckoutItem struct {
-	Quantity   int32
-	TourDetail *TourDetail
-}
-
-func (c *CheckoutItem) Amount() float64 {
-	return float64(c.Quantity) * c.TourDetail.Price
-}
-
 func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) {
-	// POST /reservations/checkout
-	if r.Method != "POST" {
-		http.Error(w, "Method must be POST", http.StatusBadRequest)
-		return
-	}
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	var vars CheckoutVars
-	if err := s.decoder.Decode(&vars, r.PostForm); err != nil {
+	if err := s.decoder.Decode(&vars, r.Form); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	var tourIDs []int32
-	for _, item := range vars.Items {
-		tourIDs = append(tourIDs, item.TourID)
-	}
-	tourDetails, err := s.store.GetTourDetailsByID(tourIDs)
+	tourDetail, ok, err := s.store.GetTourDetailByID(vars.TourID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	var checkoutItems []*CheckoutItem
-	for _, item := range vars.Items {
-		tourDetail, ok := tourDetails[item.TourID]
-		if !ok {
-			http.Error(w, fmt.Sprintf("Invalid tour ID: %d", item.TourID), http.StatusBadRequest)
-			return
-		}
-		checkoutItems = append(checkoutItems, &CheckoutItem{
-			Quantity:   item.Quantity,
-			TourDetail: tourDetail,
-		})
+	if !ok {
+		http.Error(w, fmt.Sprintf("Invalid tour ID %d", vars.TourID), http.StatusBadRequest)
+		return
 	}
 
+	// There's no for-loop in templates, so we construct a list like
+	// []int{1, 2, 3, 4, 5} for the user to select the number of riders.
+	var numRidersOptions []int
+	for i := 1; i <= maxRiders; i++ {
+		numRidersOptions = append(numRidersOptions, i)
+	}
 	data := &CheckoutData{
-		Items:                checkoutItems,
+		TourDetail:           tourDetail,
+		NumRidersOptions:     numRidersOptions,
 		StripePublishableKey: template.JSStr(s.stripePublishableKey),
 	}
 	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "checkout.html"))

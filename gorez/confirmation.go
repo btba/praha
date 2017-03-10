@@ -2,10 +2,9 @@ package main
 
 import (
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
-	"path"
+	"strings"
 
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
@@ -15,24 +14,23 @@ import (
 
 // ConfirmationVars represents the form inputs.
 type ConfirmationVars struct {
-	Items       []*OrderItem
-	Name        string
-	Email       string
-	Hotel       string
-	Mobile      string
-	StripeToken string
-}
+	TourID       int32
+	NumRiders    int
+	RiderHeights []int
+	QuotedTotal  float64
 
-// ConfirmationData is the data passed to the template.
-type ConfirmationData struct {
-	Charge        *stripe.Charge
-	DisplayAmount string
+	Name        string
+	StripeToken string
+
+	Email  string
+	Mobile string
+	Hotel  string
+	Misc   string
 }
 
 func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
-	// POST /reservations/confirmation
 	if r.Method != "POST" {
-		http.Error(w, "Method must be POST", http.StatusBadRequest)
+		http.Error(w, "Method must be POST", http.StatusMethodNotAllowed)
 		return
 	}
 	if err := r.ParseForm(); err != nil {
@@ -45,32 +43,54 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Look up requested tours.
-	var tourIDs []int32
-	for _, item := range vars.Items {
-		tourIDs = append(tourIDs, item.TourID)
+	// Validate that we have non-zero RiderHeights for all NumRiders.
+	var heights []int
+	if len(vars.RiderHeights) < vars.NumRiders {
+		http.Error(w, fmt.Sprintf("Only provided %d heights for %d riders", len(vars.RiderHeights), vars.NumRiders), http.StatusBadRequest)
+		return
 	}
-	tourDetails, err := s.store.GetTourDetailsByID(tourIDs)
+	for _, h := range vars.RiderHeights[:vars.NumRiders] {
+		if h == 0 {
+			http.Error(w, "Must select heights for all riders", http.StatusBadRequest)
+			return
+		}
+		heights = append(heights, h)
+	}
+
+	// Trim strings and validate email.
+	var (
+		name   = strings.TrimSpace(vars.Name)
+		email  = strings.TrimSpace(vars.Email)
+		mobile = strings.TrimSpace(vars.Mobile)
+		hotel  = strings.TrimSpace(vars.Hotel)
+		misc   = strings.TrimSpace(vars.Misc)
+	)
+	if email == "" {
+		http.Error(w, "Must enter email address", http.StatusBadRequest)
+		return
+	}
+
+	// Look up requested tour.
+	tourDetail, ok, err := s.store.GetTourDetailByID(vars.TourID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	// Compute total.
-	var total float64
-	for _, item := range vars.Items {
-		tourDetail, ok := tourDetails[item.TourID]
-		if !ok {
-			http.Error(w, fmt.Sprintf("Invalid tour ID: %d", item.TourID), http.StatusBadRequest)
-			return
-		}
-		total += float64(item.Quantity) * tourDetail.Price
+	if !ok {
+		http.Error(w, fmt.Sprintf("Invalid tour ID %d", vars.TourID), http.StatusBadRequest)
+		return
 	}
-	// Convert float64(13.57) to uint64(1357).
-	stripeAmount := uint64(total*100 + 0.5)
+
+	// Compute totals in cents [float64(13.57) -> uint64(1357)] and validate.
+	actualTotal := uint64(float64(vars.NumRiders)*tourDetail.Price*100 + 0.5)
+	quotedTotal := uint64(vars.QuotedTotal*100 + 0.5)
+	if actualTotal != quotedTotal {
+		http.Error(w, fmt.Sprintf("Internal pricing error: actual=%d, quoted=%d", actualTotal, quotedTotal), http.StatusInternalServerError)
+		return
+	}
 
 	// Add order to database.
-	orderID, err := s.store.CreateOrder(vars.Name, vars.Email, vars.Hotel, vars.Mobile, vars.Items)
+	orderID, err := s.store.CreateOrder(vars.TourID, heights, actualTotal, name, email, mobile, hotel, misc)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -78,8 +98,8 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 
 	// Charge to Stripe.
 	stripe.Key = s.stripeSecretKey
-	ch, err := charge.New(&stripe.ChargeParams{
-		Amount:   stripeAmount,
+	_, err = charge.New(&stripe.ChargeParams{
+		Amount:   actualTotal,
 		Currency: "USD",
 		Source:   &stripe.SourceParams{Token: vars.StripeToken},
 	})
@@ -88,37 +108,31 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// At this point, checkout has succeeded.  Everything below is
+	// optional.
+
 	// Update order in database to record payment.
 	if err := s.store.UpdateOrderPaymentRecorded(orderID); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Email the customer.
-	if err := s.emailCustomer(&vars); err != nil {
 		log.Print(err)
 	}
 
-	// Render confirmation page.
-	data := &ConfirmationData{
-		Charge:        ch,
-		DisplayAmount: fmt.Sprintf("%d.%02d", ch.Amount/100, ch.Amount%100),
+	// Email the customer.
+	if err := s.emailCustomer(name, email); err != nil {
+		log.Print(err)
+	} else {
+		// Update order in database to record confirmation email.
+		if err := s.store.UpdateOrderConfirmationSent(orderID); err != nil {
+			log.Print(err)
+		}
 	}
-	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "confirmation.html"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err := tmpl.Execute(w, data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+
+	http.Redirect(w, r, fmt.Sprintf("https://www.bikethebigapple.com/thankyou.php?OrderId=%d", orderID), http.StatusSeeOther)
 }
 
-func (s *Server) emailCustomer(vars *ConfirmationVars) error {
+func (s *Server) emailCustomer(name, email string) error {
 	from := mail.NewEmail("Bike the Big Apple Reservations", "reservations@bikethebigapple.com")
 	subject := "Bike the Big Apple confirmation"
-	to := mail.NewEmail(vars.Name, vars.Email)
+	to := mail.NewEmail(name, email)
 	content := mail.NewContent("text/plain", "Testing testing 123")
 	m := mail.NewV3MailInit(from, subject, to, content)
 
