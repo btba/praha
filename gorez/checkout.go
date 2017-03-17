@@ -5,10 +5,12 @@ import (
 	"html/template"
 	"net/http"
 	"path"
+	"time"
 )
 
 const (
-	maxRiders = 12
+	maxRiders   = 12
+	futureYears = 10 // present 2017..2026 as options for credit card expiration year
 )
 
 // CheckoutVars represents the form inputs.
@@ -20,6 +22,7 @@ type CheckoutVars struct {
 type CheckoutData struct {
 	TourDetail           *TourDetail
 	NumRidersOptions     []int
+	ExpiryYearOptions    []int
 	StripePublishableKey template.JSStr
 }
 
@@ -50,9 +53,16 @@ func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) {
 	for i := 1; i <= maxRiders; i++ {
 		numRidersOptions = append(numRidersOptions, i)
 	}
+	// Same with number of years: []int{2017, 2018, ..., 2026}
+	thisYear := time.Now().Year()
+	var expiryYearOptions []int
+	for y := thisYear; y < thisYear+futureYears; y++ {
+		expiryYearOptions = append(expiryYearOptions, y)
+	}
 	data := &CheckoutData{
 		TourDetail:           tourDetail,
 		NumRidersOptions:     numRidersOptions,
+		ExpiryYearOptions:    expiryYearOptions,
 		StripePublishableKey: template.JSStr(s.stripePublishableKey),
 	}
 	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "checkout.html"))

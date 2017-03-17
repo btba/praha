@@ -87,14 +87,14 @@
           <label for="inputNumRiders" class="col-sm-2 control-label">Number of riders</label>
           <div class="col-sm-6">
             <select class="form-control" id="inputNumRiders" name="NumRiders" onchange="numRidersChanged(parseInt(this.value), {{.TourDetail.Price}});">
-	      {{range .NumRidersOptions}}
+              {{range .NumRidersOptions}}
               <option value="{{.}}">{{.}}</option>
-	      {{end}}
+              {{end}}
             </select>
           </div>
         </div>
         <div id="riders">
-	  {{range .NumRidersOptions}}
+          {{range .NumRidersOptions}}
           <div class="form-group" style="display: none;">
             <label for="inputTmp" class="col-sm-2 control-label">Rider #{{.}} height</label>
             <div class="col-sm-6">
@@ -128,7 +128,7 @@
               </select>
             </div>
           </div>
-	  {{end}}
+          {{end}}
         </div>
         <div class="form-group">
           <label class="col-sm-2 control-label">Total</label>
@@ -178,7 +178,12 @@
         <div class="form-group">
           <label for="inputExpYear" class="col-sm-2 control-label">Expiration year</label>
           <div class="col-sm-6">
-            <input type="number" class="form-control" id="inputExpYear" placeholder="" data-stripe="exp-year">
+            <select class="form-control" data-stripe="exp-year">
+              <option value="0">-- select year --</option>
+              {{range .ExpiryYearOptions}}
+              <option value="{{.}}">{{.}}</option>
+              {{end}}
+            </select>
           </div>
         </div>
         <hr>
@@ -206,13 +211,13 @@
             <textarea class="form-control" rows="3" id="inputMisc" name="Misc"></textarea>
           </div>
         </div>
-	<div class="row payment-errors-row" style="display: none;">
+        <div class="row payment-errors-row" style="display: none;">
           <div class="col-sm-6 col-sm-offset-2">
-	    <div class="alert alert-danger" role="alert">
+            <div class="alert alert-danger" role="alert">
               <span class="payment-errors"></span>
-	    </div>
-	  </div>
-	</div>
+            </div>
+          </div>
+        </div>
         <div class="row">
           <div class="col-sm-6 col-sm-offset-2">
             <button type="submit" class="btn btn-primary">Complete purchase</button>
