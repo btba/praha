@@ -70,7 +70,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32) (*TourDetail, bool, error)
 }
 
 func priceString(total uint64) string {
-	return fmt.Sprintf("%d", total)
+	return fmt.Sprintf("%d", total/100)
 }
 
 func heightsString(heights []int) string {
