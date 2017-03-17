@@ -93,8 +93,8 @@ func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, tourID int32, heights []int
 		return 0, err
 	}
 	_, err = tx.Exec(
-		"INSERT INTO OrderItems (OrderNum, TourID, Riders, Price) VALUES (?, ?, ?, ?)",
-		orderID, tourID, len(heights), priceString(total))
+		"INSERT INTO OrderItems (OrderNum, TourID, Riders, Price, Method) VALUES (?, ?, ?, ?, ?)",
+		orderID, tourID, len(heights), priceString(total), "STw")
 	if err != nil {
 		return 0, err
 	}
