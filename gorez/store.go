@@ -17,12 +17,13 @@ type Tour struct {
 
 type TourDetail struct {
 	Tour
-	LongName string
-	Price    float64
+	LongName          string
+	Price             float64
+	NumSpotsRemaining int
 }
 
 type Store interface {
-	GetTourDetailByID(tourID int32) (*TourDetail, bool, error)
+	GetTourDetailByID(tourID int32, maxRiders int) (*TourDetail, bool, error)
 	CreateOrder(tourID int32, heights []int, total uint64, name, email, mobile, hotel, misc string) (int32, error)
 	UpdateOrderPaymentRecorded(orderID int32) error
 	UpdateOrderConfirmationSent(orderID int32) error
@@ -32,25 +33,27 @@ type RemoteStore struct {
 	db *sql.DB
 }
 
-func (s *RemoteStore) GetTourDetailByID(tourID int32) (*TourDetail, bool, error) {
+func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetail, bool, error) {
+	// Master.RiderLimit - SUM(OrderItems.ItemNum) will be NULL when Master.RiderLimit is NULL.
 	rows, err := s.db.Query(
-		"SELECT Master.TourID, Master.TourCode, Master.TourDateTime, MasterTourInfo.LongName, MasterTourInfo.Price "+
-			"FROM Master, MasterTourInfo "+
-			"WHERE Master.TourID = ? AND Master.TourCode = MasterTourInfo.ShortCode",
-		tourID)
+		"SELECT Master.TourID, Master.TourCode, Master.TourDateTime, MasterTourInfo.LongName, MasterTourInfo.Price, Master.RiderLimit - SUM(OrderItems.ItemNum) "+
+			"FROM Master, MasterTourInfo, OrderItems "+
+			"WHERE Master.TourID = ? AND Master.TourCode = MasterTourInfo.ShortCode AND OrderItems.TourID = ?",
+		tourID, tourID)
 	if err != nil {
 		return nil, false, err
 	}
 	var tourDetail *TourDetail
 	for rows.Next() {
 		var (
-			id       int32
-			code     string
-			time     mysql.NullTime
-			longName sql.NullString
-			price    sql.NullFloat64
+			id                int32
+			code              string
+			time              mysql.NullTime
+			longName          sql.NullString
+			price             sql.NullFloat64
+			numSpotsRemaining sql.NullInt64
 		)
-		if err := rows.Scan(&id, &code, &time, &longName, &price); err != nil {
+		if err := rows.Scan(&id, &code, &time, &longName, &price, &numSpotsRemaining); err != nil {
 			return nil, false, err
 		}
 		tourDetail = &TourDetail{
@@ -61,6 +64,11 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32) (*TourDetail, bool, error)
 			},
 			LongName: longName.String,
 			Price:    price.Float64,
+		}
+		if numSpotsRemaining.Valid {
+			tourDetail.NumSpotsRemaining = int(numSpotsRemaining.Int64)
+		} else {
+			tourDetail.NumSpotsRemaining = maxRiders
 		}
 	}
 	if err := rows.Err(); err != nil {

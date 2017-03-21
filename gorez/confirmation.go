@@ -71,7 +71,7 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Look up requested tour.
-	tourDetail, ok, err := s.store.GetTourDetailByID(vars.TourID)
+	tourDetail, ok, err := s.store.GetTourDetailByID(vars.TourID, maxRiders)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

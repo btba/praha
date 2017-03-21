@@ -21,6 +21,10 @@ var (
 	templatesDir         = flag.String("templates_dir", "templates", "directory containing templates")
 )
 
+const (
+	maxRiders = 14
+)
+
 type Server struct {
 	store                Store
 	sendgridKey          string

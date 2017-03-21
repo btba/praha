@@ -9,7 +9,6 @@ import (
 )
 
 const (
-	maxRiders   = 12
 	futureYears = 10 // present 2017..2026 as options for credit card expiration year
 )
 
@@ -37,7 +36,7 @@ func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tourDetail, ok, err := s.store.GetTourDetailByID(vars.TourID)
+	tourDetail, ok, err := s.store.GetTourDetailByID(vars.TourID, maxRiders)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -50,7 +49,7 @@ func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) {
 	// There's no for-loop in templates, so we construct a list like
 	// []int{1, 2, 3, 4, 5} for the user to select the number of riders.
 	var numRidersOptions []int
-	for i := 1; i <= maxRiders; i++ {
+	for i := 1; i <= tourDetail.NumSpotsRemaining; i++ {
 		numRidersOptions = append(numRidersOptions, i)
 	}
 	// Same with number of years: []int{2017, 2018, ..., 2026}
