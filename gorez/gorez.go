@@ -7,8 +7,10 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/schema"
 )
 
@@ -59,7 +61,8 @@ func main() {
 		log.Fatal(err)
 	}
 	rand.Seed(time.Now().UnixNano())
-	http.HandleFunc("/checkout", server.HandleCheckout)
-	http.HandleFunc("/checkout/confirmation", server.HandleConfirmation)
-	http.ListenAndServe(fmt.Sprintf(":%d", *port), nil)
+	m := http.NewServeMux()
+	m.HandleFunc("/checkout", server.HandleCheckout)
+	m.HandleFunc("/checkout/confirmation", server.HandleConfirmation)
+	http.ListenAndServe(fmt.Sprintf(":%d", *port), handlers.CombinedLoggingHandler(os.Stdout, m))
 }
