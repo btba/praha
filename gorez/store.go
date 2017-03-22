@@ -35,7 +35,7 @@ type RemoteStore struct {
 }
 
 func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetail, bool, error) {
-	// Master.RiderLimit - SUM(OrderItems.ItemNum) will be NULL when Master.RiderLimit is NULL.
+	// Master.RiderLimit - SUM(OrderItems.Riders) will be NULL when Master.RiderLimit is NULL.
 	rows, err := s.db.Query(
 		"SELECT Master.TourID, "+
 			"     Master.TourCode, "+
@@ -43,7 +43,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 			"     Master.HeightsNeeded IS NOT NULL, "+
 			"     MasterTourInfo.LongName, "+
 			"     MasterTourInfo.Price, "+
-			"     Master.RiderLimit - SUM(OrderItems.ItemNum) "+
+			"     Master.RiderLimit - SUM(OrderItems.Riders) "+
 			"FROM Master, MasterTourInfo, OrderItems "+
 			"WHERE Master.TourID = ? AND Master.TourCode = MasterTourInfo.ShortCode AND OrderItems.TourID = ?",
 		tourID, tourID)
