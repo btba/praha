@@ -41,14 +41,17 @@
 
       var numRidersChanged = function(n, price) {
         total = n * price;
-        c = document.getElementById('riders').childNodes;
-        for (i = 0; i < c.length; i++) {
-          if (c[i].className == 'form-group') {
-            if (n == 0) {
-              c[i].style.display = 'none';
-            } else {
-              c[i].style.display = null;
-              n--;
+        riders = document.getElementById('riders')
+        if (riders != null) {
+          c = riders.childNodes;
+          for (i = 0; i < c.length; i++) {
+            if (c[i].className == 'form-group') {
+              if (n == 0) {
+                c[i].style.display = 'none';
+              } else {
+                c[i].style.display = null;
+                n--;
+              }
             }
           }
         }
@@ -93,6 +96,7 @@
             </select>
           </div>
         </div>
+        {{if .TourDetail.HeightsNeeded}}
         <div id="riders">
           {{range .NumRidersOptions}}
           <div class="form-group" style="display: none;">
@@ -130,6 +134,7 @@
           </div>
           {{end}}
         </div>
+        {{end}}
         <div class="form-group">
           <label class="col-sm-2 control-label">Total</label>
           <div class="col-sm-6">

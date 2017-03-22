@@ -10,9 +10,10 @@ import (
 )
 
 type Tour struct {
-	ID   int32
-	Code string
-	Time time.Time
+	ID            int32
+	Code          string
+	Time          time.Time
+	HeightsNeeded bool
 }
 
 type TourDetail struct {
@@ -36,7 +37,13 @@ type RemoteStore struct {
 func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetail, bool, error) {
 	// Master.RiderLimit - SUM(OrderItems.ItemNum) will be NULL when Master.RiderLimit is NULL.
 	rows, err := s.db.Query(
-		"SELECT Master.TourID, Master.TourCode, Master.TourDateTime, MasterTourInfo.LongName, MasterTourInfo.Price, Master.RiderLimit - SUM(OrderItems.ItemNum) "+
+		"SELECT Master.TourID, "+
+			"     Master.TourCode, "+
+			"     Master.TourDateTime, "+
+			"     Master.HeightsNeeded IS NOT NULL, "+
+			"     MasterTourInfo.LongName, "+
+			"     MasterTourInfo.Price, "+
+			"     Master.RiderLimit - SUM(OrderItems.ItemNum) "+
 			"FROM Master, MasterTourInfo, OrderItems "+
 			"WHERE Master.TourID = ? AND Master.TourCode = MasterTourInfo.ShortCode AND OrderItems.TourID = ?",
 		tourID, tourID)
@@ -49,18 +56,20 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 			id                int32
 			code              string
 			time              mysql.NullTime
+			heightsNeeded     bool
 			longName          sql.NullString
 			price             sql.NullFloat64
 			numSpotsRemaining sql.NullInt64
 		)
-		if err := rows.Scan(&id, &code, &time, &longName, &price, &numSpotsRemaining); err != nil {
+		if err := rows.Scan(&id, &code, &time, &heightsNeeded, &longName, &price, &numSpotsRemaining); err != nil {
 			return nil, false, err
 		}
 		tourDetail = &TourDetail{
 			Tour: Tour{
-				ID:   id,
-				Code: code,
-				Time: time.Time,
+				ID:            id,
+				Code:          code,
+				Time:          time.Time,
+				HeightsNeeded: heightsNeeded,
 			},
 			LongName: longName.String,
 			Price:    price.Float64,
