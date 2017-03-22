@@ -25,7 +25,7 @@ type TourDetail struct {
 
 type Store interface {
 	GetTourDetailByID(tourID int32, maxRiders int) (*TourDetail, bool, error)
-	CreateOrder(tourID int32, heights []int, total uint64, name, email, mobile, hotel, misc string) (int32, error)
+	CreateOrder(tourID int32, genders []string, heights []int, total uint64, name, email, mobile, hotel, misc string) (int32, error)
 	UpdateOrderPaymentRecorded(orderID int32) error
 	UpdateOrderConfirmationSent(orderID int32) error
 }
@@ -91,18 +91,31 @@ func priceString(total uint64) string {
 	return fmt.Sprintf("%d", total/100)
 }
 
-func heightsString(heights []int) string {
+func heightsString(genders []string, heights []int) string {
 	var s []string
-	for _, h := range heights {
-		s = append(s, fmt.Sprintf("%d", h))
+	for i, g := range genders {
+		var h string
+		if i < len(heights) {
+			switch heights[i] {
+			case 0, -1:
+				h = "??"
+			case 1:
+				h = "<4'8"
+			case 100:
+				h = ">6'6"
+			default:
+				h = fmt.Sprintf("%d'%d", heights[i]/12, heights[i]%12)
+			}
+		}
+		s = append(s, g+h)
 	}
-	return strings.Join(s, ", ")
+	return strings.Join(s, " ")
 }
 
-func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, tourID int32, heights []int, total uint64, name, email, mobile, hotel, misc string) (int32, error) {
+func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, tourID int32, genders []string, heights []int, total uint64, name, email, mobile, hotel, misc string) (int32, error) {
 	result, err := tx.Exec(
 		"INSERT INTO OrderMain (CustName, CustEmail, Hotel, Mobile, DatePlaced, Message, Heights) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		name, email, hotel, mobile, time.Now(), misc, heightsString(heights))
+		name, email, hotel, mobile, time.Now(), misc, heightsString(genders, heights))
 	if err != nil {
 		return 0, err
 	}
@@ -119,12 +132,12 @@ func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, tourID int32, heights []int
 	return int32(orderID), nil
 }
 
-func (s *RemoteStore) CreateOrder(tourID int32, heights []int, total uint64, name, email, mobile, hotel, misc string) (int32, error) {
+func (s *RemoteStore) CreateOrder(tourID int32, genders []string, heights []int, total uint64, name, email, mobile, hotel, misc string) (int32, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return 0, err
 	}
-	orderID, err := s.prepareCreateOrder(tx, tourID, heights, total, name, email, mobile, hotel, misc)
+	orderID, err := s.prepareCreateOrder(tx, tourID, genders, heights, total, name, email, mobile, hotel, misc)
 	if err != nil {
 		tx.Rollback()
 		return 0, err

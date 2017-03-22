@@ -16,6 +16,7 @@ import (
 type ConfirmationVars struct {
 	TourID       int32
 	NumRiders    int
+	RiderGenders []string
 	RiderHeights []int
 	QuotedTotal  float64
 
@@ -43,20 +44,6 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate that we have non-zero RiderHeights for all NumRiders.
-	var heights []int
-	if len(vars.RiderHeights) < vars.NumRiders {
-		http.Error(w, fmt.Sprintf("Only provided %d heights for %d riders", len(vars.RiderHeights), vars.NumRiders), http.StatusBadRequest)
-		return
-	}
-	for _, h := range vars.RiderHeights[:vars.NumRiders] {
-		if h == 0 {
-			http.Error(w, "Must select heights for all riders", http.StatusBadRequest)
-			return
-		}
-		heights = append(heights, h)
-	}
-
 	// Trim strings and validate email.
 	var (
 		name   = strings.TrimSpace(vars.Name)
@@ -81,6 +68,34 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate that we have RiderGenders & RiderHeights for all NumRiders.
+	var genders []string
+	var heights []int
+	if tourDetail.HeightsNeeded {
+		if len(vars.RiderGenders) < vars.NumRiders {
+			http.Error(w, fmt.Sprintf("Only provided %d genders for %d riders", len(vars.RiderGenders), vars.NumRiders), http.StatusBadRequest)
+			return
+		}
+		for _, g := range vars.RiderGenders[:vars.NumRiders] {
+			if g == "" {
+				http.Error(w, "Must select genders for all riders", http.StatusBadRequest)
+				return
+			}
+			genders = append(genders, g)
+		}
+		if len(vars.RiderHeights) < vars.NumRiders {
+			http.Error(w, fmt.Sprintf("Only provided %d heights for %d riders", len(vars.RiderHeights), vars.NumRiders), http.StatusBadRequest)
+			return
+		}
+		for _, h := range vars.RiderHeights[:vars.NumRiders] {
+			if h == 0 {
+				http.Error(w, "Must select heights for all riders", http.StatusBadRequest)
+				return
+			}
+			heights = append(heights, h)
+		}
+	}
+
 	// Compute totals in cents [float64(13.57) -> uint64(1357)] and validate.
 	actualTotal := uint64(float64(vars.NumRiders)*tourDetail.Price*100 + 0.5)
 	quotedTotal := uint64(vars.QuotedTotal*100 + 0.5)
@@ -90,7 +105,7 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add order to database.
-	orderID, err := s.store.CreateOrder(vars.TourID, heights, actualTotal, name, email, mobile, hotel, misc)
+	orderID, err := s.store.CreateOrder(vars.TourID, genders, heights, actualTotal, name, email, mobile, hotel, misc)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

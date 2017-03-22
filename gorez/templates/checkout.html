@@ -40,21 +40,22 @@
       });
 
       var numRidersChanged = function(n, price) {
-        total = n * price;
         riders = document.getElementById('riders')
         if (riders != null) {
           c = riders.childNodes;
+          rowsToDisplay = 2 * n;  // for gender + height
           for (i = 0; i < c.length; i++) {
             if (c[i].className == 'form-group') {
-              if (n == 0) {
+              if (rowsToDisplay == 0) {
                 c[i].style.display = 'none';
               } else {
                 c[i].style.display = null;
-                n--;
+                rowsToDisplay--;
               }
             }
           }
         }
+        total = n * price;
         document.getElementById('total').innerHTML = '$' + total.toFixed(2);
         document.getElementById('quotedTotal').value = total
       }
@@ -100,10 +101,22 @@
         <div id="riders">
           {{range .NumRidersOptions}}
           <div class="form-group" style="display: none;">
+            <label for="inputRiderGender{{.}}" class="col-sm-2 control-label">Rider #{{.}} gender</label>
+            <div class="col-sm-6">
+              <select id="inputRiderGender{{.}}" class="form-control" name="RiderGenders">
+                <option value="">-- select gender --</option>
+                <option value="F">female</option>
+                <option value="M">male</option>
+                <option value="X">prefer not to say</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" style="display: none;">
             <label for="inputRiderHeight{{.}}" class="col-sm-2 control-label">Rider #{{.}} height</label>
             <div class="col-sm-6">
               <select id="inputRiderHeight{{.}}" class="form-control" name="RiderHeights">
                 <option value="0">-- select height --</option> <!-- use "0" so gorilla decodes it -->
+                <option value="-1">unknown</option>
                 <option value="1">less than 4&prime;08&Prime; (less than 142 cm)</option>
                 <option value="56">4&prime;08&Prime; (142 cm)</option>
                 <option value="57">4&prime;09&Prime; (145 cm)</option>
