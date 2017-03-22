@@ -35,7 +35,6 @@ type RemoteStore struct {
 }
 
 func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetail, bool, error) {
-	// Master.RiderLimit - SUM(OrderItems.Riders) will be NULL when Master.RiderLimit is NULL.
 	rows, err := s.db.Query(
 		"SELECT Master.TourID, "+
 			"     Master.TourCode, "+
@@ -43,7 +42,8 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 			"     Master.HeightsNeeded IS NOT NULL, "+
 			"     MasterTourInfo.LongName, "+
 			"     MasterTourInfo.Price, "+
-			"     Master.RiderLimit - SUM(OrderItems.Riders) "+
+			"     Master.RiderLimit, "+
+			"     SUM(OrderItems.Riders) "+
 			"FROM Master, MasterTourInfo, OrderItems "+
 			"WHERE Master.TourID = ? AND Master.TourCode = MasterTourInfo.ShortCode AND OrderItems.TourID = ?",
 		tourID, tourID)
@@ -53,15 +53,16 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 	var tourDetail *TourDetail
 	for rows.Next() {
 		var (
-			id                int32
-			code              string
-			time              mysql.NullTime
-			heightsNeeded     bool
-			longName          sql.NullString
-			price             sql.NullFloat64
-			numSpotsRemaining sql.NullInt64
+			id            int32
+			code          string
+			time          mysql.NullTime
+			heightsNeeded bool
+			longName      sql.NullString
+			price         sql.NullFloat64
+			riderLimit    sql.NullInt64
+			numRiders     int32
 		)
-		if err := rows.Scan(&id, &code, &time, &heightsNeeded, &longName, &price, &numSpotsRemaining); err != nil {
+		if err := rows.Scan(&id, &code, &time, &heightsNeeded, &longName, &price, &riderLimit, &numRiders); err != nil {
 			return nil, false, err
 		}
 		tourDetail = &TourDetail{
@@ -74,10 +75,10 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 			LongName: longName.String,
 			Price:    price.Float64,
 		}
-		if numSpotsRemaining.Valid {
-			tourDetail.NumSpotsRemaining = int(numSpotsRemaining.Int64)
-		} else {
+		if !riderLimit.Valid || riderLimit.Int64 == 0 {
 			tourDetail.NumSpotsRemaining = maxRiders
+		} else {
+			tourDetail.NumSpotsRemaining = int(riderLimit.Int64) - int(numRiders)
 		}
 	}
 	if err := rows.Err(); err != nil {
