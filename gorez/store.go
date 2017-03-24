@@ -13,6 +13,7 @@ type Tour struct {
 	ID            int32
 	Code          string
 	Time          time.Time
+	AutoConfirm   bool
 	HeightsNeeded bool
 }
 
@@ -39,6 +40,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 		id            int32
 		code          string
 		time          mysql.NullTime
+		autoConfirm   bool
 		riderLimit    sql.NullInt64
 		heightsNeeded bool
 		longName      sql.NullString
@@ -49,6 +51,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 		"SELECT Master.TourID, "+
 		"    Master.TourCode, "+
 		"    Master.TourDateTime, "+
+		"    Master.AutoConfirm <> 0, "+
 		"    Master.RiderLimit, "+
 		"    Master.HeightsNeeded IS NOT NULL, "+
 		"    MasterTourInfo.LongName, "+
@@ -63,7 +66,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 		") AS Riders ON Master.TourID = Riders.TourID "+
 		"WHERE Master.TourID = ?",
 		tourID)
-	err := row.Scan(&id, &code, &time, &riderLimit, &heightsNeeded, &longName, &price, &numRiders)
+	err := row.Scan(&id, &code, &time, &autoConfirm, &riderLimit, &heightsNeeded, &longName, &price, &numRiders)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, false, nil
@@ -75,6 +78,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 			ID:            id,
 			Code:          code,
 			Time:          time.Time,
+			AutoConfirm:   autoConfirm,
 			HeightsNeeded: heightsNeeded,
 		},
 		LongName: longName.String,

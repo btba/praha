@@ -132,12 +132,14 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Email the customer.
-	if err := s.emailCustomer(name, email); err != nil {
-		log.Print(err)
-	} else {
-		// Update order in database to record confirmation email.
-		if err := s.store.UpdateOrderConfirmationSent(orderID); err != nil {
+	if tourDetail.AutoConfirm {
+		if err := s.emailCustomer(name, email); err != nil {
 			log.Print(err)
+		} else {
+			// Update order in database to record confirmation email.
+			if err := s.store.UpdateOrderConfirmationSent(orderID); err != nil {
+				log.Print(err)
+			}
 		}
 	}
 
