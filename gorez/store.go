@@ -35,7 +35,7 @@ type RemoteStore struct {
 }
 
 func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetail, bool, error) {
-	rows, err := s.db.Query(
+	row := s.db.QueryRow(
 		"SELECT Master.TourID, "+
 			"     Master.TourCode, "+
 			"     Master.TourDateTime, "+
@@ -47,44 +47,39 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 			"FROM Master, MasterTourInfo, OrderItems "+
 			"WHERE Master.TourID = ? AND Master.TourCode = MasterTourInfo.ShortCode AND OrderItems.TourID = ?",
 		tourID, tourID)
+	var (
+		id            int32
+		code          string
+		time          mysql.NullTime
+		heightsNeeded bool
+		longName      sql.NullString
+		price         sql.NullFloat64
+		riderLimit    sql.NullInt64
+		numRiders     sql.NullInt64 // SUM() can return NULL
+	)
+	err := row.Scan(&id, &code, &time, &heightsNeeded, &longName, &price, &riderLimit, &numRiders)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, false, nil
+		}
 		return nil, false, err
 	}
-	var tourDetail *TourDetail
-	for rows.Next() {
-		var (
-			id            int32
-			code          string
-			time          mysql.NullTime
-			heightsNeeded bool
-			longName      sql.NullString
-			price         sql.NullFloat64
-			riderLimit    sql.NullInt64
-			numRiders     sql.NullInt64 // SUM() can return NULL
-		)
-		if err := rows.Scan(&id, &code, &time, &heightsNeeded, &longName, &price, &riderLimit, &numRiders); err != nil {
-			return nil, false, err
-		}
-		tourDetail = &TourDetail{
-			Tour: Tour{
-				ID:            id,
-				Code:          code,
-				Time:          time.Time,
-				HeightsNeeded: heightsNeeded,
-			},
-			LongName: longName.String,
-			Price:    price.Float64,
-		}
-		if !riderLimit.Valid || riderLimit.Int64 == 0 {
-			tourDetail.NumSpotsRemaining = maxRiders
-		} else {
-			tourDetail.NumSpotsRemaining = int(riderLimit.Int64) - int(numRiders.Int64)
-		}
+	tourDetail := &TourDetail{
+		Tour: Tour{
+			ID:            id,
+			Code:          code,
+			Time:          time.Time,
+			HeightsNeeded: heightsNeeded,
+		},
+		LongName: longName.String,
+		Price:    price.Float64,
 	}
-	if err := rows.Err(); err != nil {
-		return nil, false, err
+	if !riderLimit.Valid || riderLimit.Int64 == 0 {
+		tourDetail.NumSpotsRemaining = maxRiders
+	} else {
+		tourDetail.NumSpotsRemaining = int(riderLimit.Int64) - int(numRiders.Int64)
 	}
-	return tourDetail, tourDetail != nil, nil
+	return tourDetail, true, nil
 }
 
 func priceString(total uint64) string {
