@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Bike the Big Apple - Checkout</title>
-    <link rel="shortcut icon" href="https://bikethebigapple.com/images/ui/favicon.png"/>
+    <link rel="shortcut icon" href="https://bikethebigapple.com/images/ui/favicon.png">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
     <script type="text/javascript" src="https://js.stripe.com/v2/"></script>
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
@@ -67,8 +67,8 @@
         <h1>Bike the Big Apple &ndash; Checkout</h1>
       </div>
       <form class="form-horizontal" action="/checkout/confirmation" method="POST" id="payment-form">
-        <input type="hidden" name="TourID" value="{{.TourDetail.ID}}"/>
-        <input type="hidden" name="QuotedTotal" id="quotedTotal"/>
+        <input type="hidden" name="TourID" value="{{.TourDetail.ID}}">
+        <input type="hidden" name="QuotedTotal" id="quotedTotal">
         <div class="form-group">
           <label class="col-sm-2 control-label">Tour</label>
           <div class="col-sm-6">
@@ -168,7 +168,9 @@
           </div>
         </div>
         <div class="form-group">
-          <label for="inputCVC" class="col-sm-2 control-label">CVC</label>
+          <label for="inputCVC" class="col-sm-2 control-label">
+            CVC <span class="glyphicon glyphicon-question-sign" aria-hidden="true" data-toggle="modal" data-target="#cvcModal"></span>
+          </label>
           <div class="col-sm-6">
             <input id="inputCVC" type="number" class="form-control" data-stripe="cvc">
           </div>
@@ -244,6 +246,23 @@
       </form>
     </div>
     <br><br><br><br>
+    <div class="modal fade" id="cvcModal" tabindex="-1" role="dialog" aria-labelledby="cvcModalLabel">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h3 class="modal-title" id="cvcModalLabel">How to find the CVC number on your card</h3>
+          </div>
+          <div class="modal-body">
+            For most cards, the CVC number is a <strong>3 digit</strong> number on the signature strip on the back of your card.<br>
+            <img src="https://www.bikethebigapple.com/images/rez_images/CVC-Visa.jpg"><br><br>
+            For <strong>American Express</strong> cards, however, the CVC is a 4 digit number found around the upper-right-hand part of the <strong>front</strong> of the card.<br>
+            <img src="https://www.bikethebigapple.com/images/rez_images/CVC-Amex.jpg"><br><br>
+            Note, that in either case, the CVC number is <strong>neither</strong> the last several digits of your card number, <strong>nor</strong> your PIN number.
+          </div>
+        </div>
+      </div>
+    </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
   </body>
