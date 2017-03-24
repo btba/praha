@@ -60,7 +60,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 			longName      sql.NullString
 			price         sql.NullFloat64
 			riderLimit    sql.NullInt64
-			numRiders     int32
+			numRiders     sql.NullInt64 // SUM() can return NULL
 		)
 		if err := rows.Scan(&id, &code, &time, &heightsNeeded, &longName, &price, &riderLimit, &numRiders); err != nil {
 			return nil, false, err
@@ -78,7 +78,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 		if !riderLimit.Valid || riderLimit.Int64 == 0 {
 			tourDetail.NumSpotsRemaining = maxRiders
 		} else {
-			tourDetail.NumSpotsRemaining = int(riderLimit.Int64) - int(numRiders)
+			tourDetail.NumSpotsRemaining = int(riderLimit.Int64) - int(numRiders.Int64)
 		}
 	}
 	if err := rows.Err(); err != nil {
