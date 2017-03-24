@@ -35,29 +35,35 @@ type RemoteStore struct {
 }
 
 func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetail, bool, error) {
-	row := s.db.QueryRow(
-		"SELECT Master.TourID, "+
-			"     Master.TourCode, "+
-			"     Master.TourDateTime, "+
-			"     Master.HeightsNeeded IS NOT NULL, "+
-			"     MasterTourInfo.LongName, "+
-			"     MasterTourInfo.Price, "+
-			"     Master.RiderLimit, "+
-			"     SUM(OrderItems.Riders) "+
-			"FROM Master, MasterTourInfo, OrderItems "+
-			"WHERE Master.TourID = ? AND Master.TourCode = MasterTourInfo.ShortCode AND OrderItems.TourID = ?",
-		tourID, tourID)
 	var (
 		id            int32
 		code          string
 		time          mysql.NullTime
+		riderLimit    sql.NullInt64
 		heightsNeeded bool
 		longName      sql.NullString
 		price         sql.NullFloat64
-		riderLimit    sql.NullInt64
 		numRiders     sql.NullInt64 // SUM() can return NULL
 	)
-	err := row.Scan(&id, &code, &time, &heightsNeeded, &longName, &price, &riderLimit, &numRiders)
+	row := s.db.QueryRow(""+
+		"SELECT Master.TourID, "+
+		"    Master.TourCode, "+
+		"    Master.TourDateTime, "+
+		"    Master.RiderLimit, "+
+		"    Master.HeightsNeeded IS NOT NULL, "+
+		"    MasterTourInfo.LongName, "+
+		"    MasterTourInfo.Price, "+
+		"    Riders.Count "+
+		"FROM Master "+
+		"LEFT JOIN MasterTourInfo ON Master.TourCode = MasterTourInfo.ShortCode "+
+		"LEFT JOIN ("+
+		"    SELECT TourID, SUM(Riders) AS Count "+
+		"    FROM OrderItems "+
+		"    GROUP BY TourID"+
+		") AS Riders ON Master.TourID = Riders.TourID "+
+		"WHERE Master.TourID = ?",
+		tourID)
+	err := row.Scan(&id, &code, &time, &riderLimit, &heightsNeeded, &longName, &price, &numRiders)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, false, nil
