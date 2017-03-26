@@ -20,6 +20,7 @@ var (
 	sendgridKey          = flag.String("sendgrid_key", "", "SendGrid API key")
 	stripeSecretKey      = flag.String("stripe_secret_key", "", "Stripe key used by server")
 	stripePublishableKey = flag.String("stripe_publishable_key", "", "Stripe key to embed in Javascript")
+	staticDir            = flag.String("static_dir", "", "if provided, directory for static files")
 	templatesDir         = flag.String("templates_dir", "templates", "directory containing templates")
 )
 
@@ -64,5 +65,8 @@ func main() {
 	m := http.NewServeMux()
 	m.HandleFunc("/checkout", server.HandleCheckout)
 	m.HandleFunc("/checkout/confirmation", server.HandleConfirmation)
+	if *staticDir != "" {
+		m.Handle("/", http.FileServer(http.Dir(*staticDir)))
+	}
 	http.ListenAndServe(fmt.Sprintf(":%d", *port), handlers.CombinedLoggingHandler(os.Stdout, m))
 }

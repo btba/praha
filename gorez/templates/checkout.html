@@ -7,6 +7,37 @@
     <title>Bike the Big Apple - Checkout</title>
     <link rel="shortcut icon" href="https://bikethebigapple.com/images/ui/favicon.png">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <style>
+      @font-face {
+        font-family: BebasNeueRegular;
+        src: url('/BebasNeue-webfont.woff');
+      }
+      @font-face {
+        font-family: SEGOEUI;
+        src: url('/SEGOEUI.woff');
+      }
+      body {
+        background-color: #000000;
+        font-family: SEGOEUI;
+        font-size: 17px;
+      }
+      div.container {
+        background-color: #ffffff;
+      }
+      div.jumbotron {
+        background-color: #e00000;
+        color: #ffffff;
+        font-family: BebasNeueRegular;
+        letter-spacing: 2px;
+      }
+      button.btn-primary {
+        background-color: #ffc000;
+        border: none;
+        color: #000000;
+        font-family: BebasNeueRegular;
+        font-size: 22px;
+      }
+    </style>
     <script type="text/javascript" src="https://js.stripe.com/v2/"></script>
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
     <script type="text/javascript">
@@ -64,7 +95,7 @@
   <body onload="numRidersChanged(1, {{.TourDetail.Price}})">
     <div class="container">
       <div class="jumbotron">
-        <h1>Bike the Big Apple &ndash; Checkout</h1>
+        <h1>BIKE THE BIG APPLE- CHECKOUT</h1>
       </div>
       <form class="form-horizontal" action="/checkout/confirmation" method="POST" id="payment-form">
         <input type="hidden" name="TourID" value="{{.TourDetail.ID}}">
@@ -240,12 +271,12 @@
         </div>
         <div class="row">
           <div class="col-sm-6 col-sm-offset-2">
-            <button type="submit" class="btn btn-primary">Complete purchase</button>
+            <button type="submit" class="btn btn-primary btn-lg">COMPLETE PURCHASE</button>
           </div>
         </div>
       </form>
-    </div>
     <br><br><br><br>
+    </div>
     <div class="modal fade" id="cvcModal" tabindex="-1" role="dialog" aria-labelledby="cvcModalLabel">
       <div class="modal-dialog" role="document">
         <div class="modal-content">
