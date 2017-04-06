@@ -38,11 +38,11 @@ type RemoteStore struct {
 func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetail, bool, error) {
 	var (
 		id            int32
-		code          string
+		code          sql.NullString
 		time          mysql.NullTime
-		autoConfirm   bool
+		autoConfirm   sql.NullBool
 		riderLimit    sql.NullInt64
-		heightsNeeded bool
+		heightsNeeded sql.NullBool
 		longName      sql.NullString
 		price         sql.NullFloat64
 		numRiders     sql.NullInt64 // SUM() can return NULL
@@ -76,10 +76,10 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 	tourDetail := &TourDetail{
 		Tour: Tour{
 			ID:            id,
-			Code:          code,
+			Code:          code.String,
 			Time:          time.Time,
-			AutoConfirm:   autoConfirm,
-			HeightsNeeded: heightsNeeded,
+			AutoConfirm:   autoConfirm.Bool,
+			HeightsNeeded: heightsNeeded.Bool,
 		},
 		LongName: longName.String,
 		Price:    price.Float64,
