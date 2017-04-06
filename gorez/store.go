@@ -14,7 +14,10 @@ type Tour struct {
 	Code          string
 	Time          time.Time
 	AutoConfirm   bool
+	Full          bool
+	Cancelled     bool
 	HeightsNeeded bool
+	Deleted       bool
 }
 
 type TourDetail struct {
@@ -41,8 +44,11 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 		code          sql.NullString
 		time          mysql.NullTime
 		autoConfirm   sql.NullBool
+		full          sql.NullBool
+		cancelled     sql.NullBool
 		riderLimit    sql.NullInt64
 		heightsNeeded sql.NullBool
+		deleted       sql.NullBool
 		longName      sql.NullString
 		price         sql.NullFloat64
 		numRiders     sql.NullInt64 // SUM() can return NULL
@@ -52,8 +58,11 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 		"    Master.TourCode, "+
 		"    Master.TourDateTime, "+
 		"    Master.AutoConfirm <> 0, "+
+		"    Master.TourFull, "+
+		"    Master.Cancelled, "+
 		"    Master.RiderLimit, "+
 		"    Master.HeightsNeeded IS NOT NULL, "+
+		"    Master.Deleted, "+
 		"    MasterTourInfo.LongName, "+
 		"    MasterTourInfo.Price, "+
 		"    Riders.Count "+
@@ -66,7 +75,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 		") AS Riders ON Master.TourID = Riders.TourID "+
 		"WHERE Master.TourID = ?",
 		tourID)
-	err := row.Scan(&id, &code, &time, &autoConfirm, &riderLimit, &heightsNeeded, &longName, &price, &numRiders)
+	err := row.Scan(&id, &code, &time, &autoConfirm, &full, &cancelled, &riderLimit, &heightsNeeded, &deleted, &longName, &price, &numRiders)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, false, nil
@@ -79,7 +88,10 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 			Code:          code.String,
 			Time:          time.Time,
 			AutoConfirm:   autoConfirm.Bool,
+			Full:          full.Bool,
+			Cancelled:     cancelled.Bool,
 			HeightsNeeded: heightsNeeded.Bool,
+			Deleted:       deleted.Bool,
 		},
 		LongName: longName.String,
 		Price:    price.Float64,

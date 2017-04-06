@@ -23,6 +23,7 @@ type CheckoutData struct {
 	NumRidersOptions     []int
 	ExpiryYearOptions    []int
 	StripePublishableKey template.JSStr
+	WarnOnLoad           bool
 }
 
 func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) {
@@ -63,6 +64,7 @@ func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) {
 		NumRidersOptions:     numRidersOptions,
 		ExpiryYearOptions:    expiryYearOptions,
 		StripePublishableKey: template.JSStr(s.stripePublishableKey),
+		WarnOnLoad:           tourDetail.Time.Before(time.Now()) || tourDetail.Full || tourDetail.Cancelled || tourDetail.Deleted,
 	}
 	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "checkout.html"))
 	if err != nil {
