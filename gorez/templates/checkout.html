@@ -206,7 +206,7 @@
         <div class="form-group">
           <label for="inputNumber" class="col-sm-2 control-label">Card number</label>
           <div class="col-sm-6">
-            <input id="inputNumber" type="number" class="form-control" data-stripe="number">
+            <input id="inputNumber" type="number" class="form-control" data-stripe="number" required>
           </div>
         </div>
         <div class="form-group">
@@ -214,14 +214,14 @@
             CVC <span class="glyphicon glyphicon-question-sign" aria-hidden="true" data-toggle="modal" data-target="#cvcModal"></span>
           </label>
           <div class="col-sm-6">
-            <input id="inputCVC" type="number" class="form-control" data-stripe="cvc">
+            <input id="inputCVC" type="number" class="form-control" data-stripe="cvc" required>
           </div>
         </div>
         <div class="form-group">
           <label for="inputExpMonth" class="col-sm-2 control-label">Expiration month</label>
           <div class="col-sm-6">
-            <select id="inputExpMonth" class="form-control" data-stripe="exp-month">
-              <option value="0">-- select month --</option>
+            <select id="inputExpMonth" class="form-control" data-stripe="exp-month" required>
+              <option value="">-- select month --</option>
               <option value="1">(01) January</option>
               <option value="2">(02) February</option>
               <option value="3">(03) March</option>
@@ -240,8 +240,8 @@
         <div class="form-group">
           <label for="inputExpYear" class="col-sm-2 control-label">Expiration year</label>
           <div class="col-sm-6">
-            <select id="inputExpYear" class="form-control" data-stripe="exp-year">
-              <option value="0">-- select year --</option>
+            <select id="inputExpYear" class="form-control" data-stripe="exp-year" required>
+              <option value="">-- select year --</option>
               {{range .ExpiryYearOptions}}
               <option value="{{.}}">{{.}}</option>
               {{end}}
