@@ -47,6 +47,11 @@ func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if tourDetail.NumSpotsRemaining == 0 {
+		http.Error(w, "Tour has no availability", http.StatusNotFound)
+		return
+	}
+
 	// There's no for-loop in templates, so we construct a list like
 	// []int{1, 2, 3, 4, 5} for the user to select the number of riders.
 	var numRidersOptions []int
