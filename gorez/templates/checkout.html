@@ -71,22 +71,30 @@
       });
 
       var numRidersChanged = function(n, price) {
-        riders = document.getElementById('riders')
+        var riders = document.getElementById('riders')
         if (riders != null) {
-          c = riders.childNodes;
-          rowsToDisplay = 2 * n;  // for gender + height
-          for (i = 0; i < c.length; i++) {
+          var c = riders.childNodes;
+          var rowsToDisplay = 2 * n;  // for gender + height
+          for (var i = 0; i < c.length; i++) {
             if (c[i].className == 'form-group') {
               if (rowsToDisplay == 0) {
                 c[i].style.display = 'none';
+                var selects = c[i].getElementsByTagName("select");
+                for (var j = 0; j < selects.length; j++) {
+                  selects[j].required = false;
+                }
               } else {
                 c[i].style.display = null;
+                var selects = c[i].getElementsByTagName("select");
+                for (var j = 0; j < selects.length; j++) {
+                  selects[j].required = true;
+                }
                 rowsToDisplay--;
               }
             }
           }
         }
-        total = n * price;
+        var total = n * price;
         document.getElementById('total').innerHTML = '$' + total.toFixed(2);
         document.getElementById('quotedTotal').value = total
       }
@@ -157,7 +165,7 @@
             <label for="inputRiderHeight{{.}}" class="col-sm-2 control-label">Rider #{{.}} height</label>
             <div class="col-sm-6">
               <select id="inputRiderHeight{{.}}" class="form-control" name="RiderHeights">
-                <option value="0">-- select height --</option> <!-- use "0" so gorilla decodes it -->
+                <option value="">-- select height --</option>
                 <option value="-1">unknown</option>
                 <option value="1">less than 4&prime;08&Prime; (less than 142 cm)</option>
                 <option value="56">4&prime;08&Prime; (142 cm)</option>
