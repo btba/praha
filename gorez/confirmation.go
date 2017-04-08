@@ -44,6 +44,17 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Look up requested tour.
+	tourDetail, ok, err := s.store.GetTourDetailByID(vars.TourID, maxRiders)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !ok {
+		http.Error(w, fmt.Sprintf("Invalid tour ID %d", vars.TourID), http.StatusBadRequest)
+		return
+	}
+
 	// Trim strings and validate email.
 	var (
 		name   = strings.TrimSpace(vars.Name)
@@ -54,17 +65,6 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 	)
 	if email == "" {
 		http.Error(w, "Must enter email address", http.StatusBadRequest)
-		return
-	}
-
-	// Look up requested tour.
-	tourDetail, ok, err := s.store.GetTourDetailByID(vars.TourID, maxRiders)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if !ok {
-		http.Error(w, fmt.Sprintf("Invalid tour ID %d", vars.TourID), http.StatusBadRequest)
 		return
 	}
 
