@@ -70,8 +70,9 @@
         });
       });
 
-      var numRidersChanged = function(n, price) {
-        var riders = document.getElementById('riders')
+      var numRidersChanged = function(price) {
+        var n = document.getElementById('inputNumRiders').value;
+        var riders = document.getElementById('riders');
         if (riders != null) {
           var c = riders.childNodes;
           var rowsToDisplay = 2 * n;  // for gender + height
@@ -100,7 +101,7 @@
       }
     </script>
   </head>
-  <body onload="numRidersChanged(1, {{.TourDetail.Price}})">
+  <body onload="numRidersChanged({{.TourDetail.Price}})">
     <div class="container">
       <div class="jumbotron">
         <h1>BIKE THE BIG APPLE- CHECKOUT</h1>
@@ -140,7 +141,7 @@
         <div class="form-group">
           <label for="inputNumRiders" class="col-sm-2 control-label">Number of riders</label>
           <div class="col-sm-6">
-            <select id="inputNumRiders" class="form-control" name="NumRiders" onchange="numRidersChanged(parseInt(this.value), {{.TourDetail.Price}});">
+            <select id="inputNumRiders" class="form-control" name="NumRiders" onchange="numRidersChanged({{.TourDetail.Price}});">
               {{range .NumRidersOptions}}
               <option value="{{.}}">{{.}}</option>
               {{end}}
