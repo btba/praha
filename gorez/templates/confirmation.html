@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bike the Big Apple - Confirmation</title>
+    <link rel="shortcut icon" href="https://bikethebigapple.com/images/ui/favicon.png">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <style>
+      @font-face {
+        font-family: BebasNeueRegular;
+        src: url('/BebasNeue-webfont.woff');
+      }
+      @font-face {
+        font-family: SEGOEUI;
+        src: url('/SEGOEUI.woff');
+      }
+      body {
+        background-color: #000000;
+        font-family: SEGOEUI;
+        font-size: 17px;
+      }
+      div.container {
+        background-color: #ffffff;
+      }
+      div.jumbotron {
+        background-color: #e00000;
+        color: #ffffff;
+        font-family: BebasNeueRegular;
+        letter-spacing: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="jumbotron">
+        <h1>BIKE THE BIG APPLE- CONFIRMATION</h1>
+      </div>
+      <p>
+        Thank you for your reservation. Please review the details
+        below; if anything is incorrect, contact
+        reservations@bikethebigapple.com immediately.
+      </p>
+      <dl class="dl-horizontal">
+        <dt>Tour</dt>
+        <dd>{{.TourDetail.Code}} &ndash; {{.TourDetail.LongName}}</dd>
+        <dt>Date &amp; time</dt>
+        <dd>{{.TourDetail.Time.Format "Monday, _2 January 2006 at 3:04 pm"}}</dd>
+        <dt>Number of riders</dt>
+        <dd>{{.NumRiders}}</dd>
+        <dt>Total</dt>
+        <dd>{{.DisplayTotal}}</dd>
+        <hr>
+        <dt>Name</dt>
+        <dd>{{.Name}}</dd>
+        <dt>Email</dt>
+        <dd>{{.Email}}</dd>
+        <dt>Mobile phone</dt>
+        <dd>{{.Mobile}}</dd>
+        <dt>Hotel</dt>
+        <dd>{{.Hotel}}</dd>
+        <dt>Notes</dt>
+        <dd>{{.Misc}}</dd>
+      </dl>
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+  </body>
+</html>

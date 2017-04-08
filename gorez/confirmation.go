@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
+	"path"
 	"strings"
 
 	"github.com/sendgrid/sendgrid-go"
@@ -23,6 +25,19 @@ type ConfirmationVars struct {
 	Name        string
 	StripeToken string
 
+	Email  string
+	Mobile string
+	Hotel  string
+	Misc   string
+}
+
+// ConfirmationData is the data passed to the template.
+type ConfirmationData struct {
+	TourDetail   *TourDetail
+	NumRiders    int
+	DisplayTotal string
+
+	Name   string
 	Email  string
 	Mobile string
 	Hotel  string
@@ -143,7 +158,25 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("https://www.bikethebigapple.com/thankyou.php?OrderId=%d", orderID), http.StatusSeeOther)
+	data := &ConfirmationData{
+		TourDetail:   tourDetail,
+		NumRiders:    len(genders),
+		DisplayTotal: fmt.Sprintf("$%d.%02d", actualTotal/100, actualTotal%100),
+		Name:         name,
+		Email:        email,
+		Mobile:       mobile,
+		Hotel:        hotel,
+		Misc:         misc,
+	}
+	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "confirmation.html"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := tmpl.Execute(w, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *Server) emailCustomer(name, email string) error {
