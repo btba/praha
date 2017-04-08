@@ -128,7 +128,7 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add order to database.
-	orderID, err := s.store.CreateOrder(vars.TourID, genders, heights, actualTotal, name, email, mobile, hotel, misc)
+	orderID, err := s.store.CreateOrder(vars.TourID, vars.NumRiders, genders, heights, actualTotal, name, email, mobile, hotel, misc)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -168,7 +168,7 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 
 	data := &ConfirmationData{
 		TourDetail:   tourDetail,
-		NumRiders:    len(genders),
+		NumRiders:    vars.NumRiders,
 		DisplayTotal: fmt.Sprintf("$%d.%02d", actualTotal/100, actualTotal%100),
 		Name:         name,
 		Email:        email,
