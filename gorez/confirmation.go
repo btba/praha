@@ -73,8 +73,22 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// NOTE: These checks are racy, but the conditions are unlikely.
+	// - Tour deleted by admin
+	// - Tour fields changed by admin (price, time, full, cancelled, deleted)
+	// - Tour number of riders changed (due to concurrent purchase)
+	// We could do the reads/checks/write in a transaction, retrying
+	// when the commit fails due to a change in the number of riders.
+	//
+	// Compute totals in cents [float64(13.57) -> uint64(1357)] and validate.
+	actualTotal := uint64(float64(vars.NumRiders)*tourDetail.Price*100 + 0.5)
+	quotedTotal := uint64(vars.QuotedTotal*100 + 0.5)
+	if actualTotal != quotedTotal {
+		http.Error(w, fmt.Sprintf("Internal pricing error: actual=%d, quoted=%d", actualTotal, quotedTotal), http.StatusInternalServerError)
+		return
+	}
 	warn := false
-	if tourDetail.Time.Before(time.Now()) || tourDetail.Full || tourDetail.Cancelled || tourDetail.Deleted {
+	if tourDetail.Time.Before(time.Now()) || tourDetail.Full || tourDetail.Cancelled || tourDetail.Deleted || vars.NumRiders > tourDetail.NumSpotsRemaining {
 		warn = true
 	}
 
@@ -117,14 +131,6 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 			}
 			heights = append(heights, h)
 		}
-	}
-
-	// Compute totals in cents [float64(13.57) -> uint64(1357)] and validate.
-	actualTotal := uint64(float64(vars.NumRiders)*tourDetail.Price*100 + 0.5)
-	quotedTotal := uint64(vars.QuotedTotal*100 + 0.5)
-	if actualTotal != quotedTotal {
-		http.Error(w, fmt.Sprintf("Internal pricing error: actual=%d, quoted=%d", actualTotal, quotedTotal), http.StatusInternalServerError)
-		return
 	}
 
 	// Add order to database.
