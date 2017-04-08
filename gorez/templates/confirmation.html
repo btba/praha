@@ -37,11 +37,20 @@
       <div class="jumbotron">
         <h1>BIKE THE BIG APPLE- CONFIRMATION</h1>
       </div>
-      <p>
+      {{if .Warn}}
+      <div class="alert alert-warning" role="alert">
+        WARNING: We have recorded your information and payment, but we
+        cannot confirm your reservation at this time.  Please contact
+        reservations@bikethebigapple.com immediately regarding your
+        reservation.
+      </div>
+      {{else}}
+      <div class="alert alert-info" role="alert">
         Thank you for your reservation. Please review the details
         below; if anything is incorrect, contact
         reservations@bikethebigapple.com immediately.
-      </p>
+      </div>
+      {{end}}
       <dl class="dl-horizontal">
         <dt>Tour</dt>
         <dd>{{.TourDetail.Code}} &ndash; {{.TourDetail.LongName}}</dd>

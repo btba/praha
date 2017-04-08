@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
@@ -42,6 +43,8 @@ type ConfirmationData struct {
 	Mobile string
 	Hotel  string
 	Misc   string
+
+	Warn bool
 }
 
 func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
@@ -68,6 +71,11 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		http.Error(w, fmt.Sprintf("Invalid tour ID %d", vars.TourID), http.StatusBadRequest)
 		return
+	}
+
+	warn := false
+	if tourDetail.Time.Before(time.Now()) || tourDetail.Full || tourDetail.Cancelled || tourDetail.Deleted {
+		warn = true
 	}
 
 	// Trim strings and validate email.
@@ -147,7 +155,7 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Email the customer.
-	if tourDetail.AutoConfirm {
+	if tourDetail.AutoConfirm && !warn {
 		if err := s.emailCustomer(name, email); err != nil {
 			log.Print(err)
 		} else {
@@ -167,6 +175,7 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		Mobile:       mobile,
 		Hotel:        hotel,
 		Misc:         misc,
+		Warn:         warn,
 	}
 	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "confirmation.html"))
 	if err != nil {
