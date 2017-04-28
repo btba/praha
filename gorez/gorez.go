@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/schema"
 )
 
@@ -59,6 +59,28 @@ func NewServer(dsn, sendgridKey, stripeSecretKey, stripePublishableKey, template
 	}, nil
 }
 
+// See also https://blog.golang.org/error-handling-and-go, although
+// this code does something slightly different.
+type appError struct {
+	Code    int
+	Message string // for client
+	Error   error  // for server debug logs
+}
+
+type logHandler struct {
+	log    *log.Logger
+	handle func(http.ResponseWriter, *http.Request) (code int, warnings []string, summary string)
+}
+
+func (h *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	code, warnings, summary := h.handle(w, r)
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	h.log.Printf("%s %s %s %s code:%d warnings:%v %s\n", host, r.Method, r.URL.Path, r.Form.Encode(), code, warnings, summary)
+}
+
 func main() {
 	flag.Parse()
 
@@ -70,6 +92,7 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+	requestLog := log.New(requestLogWriter, "", log.LstdFlags)
 
 	debugLogWriter := os.Stdout
 	if *debugLog != "" {
@@ -79,18 +102,19 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+	debugLog := log.New(debugLogWriter, "", log.LstdFlags|log.Lshortfile)
 
-	server, err := NewServer(*bookingsDSN, *sendgridKey, *stripeSecretKey, *stripePublishableKey, *templatesDir, log.New(debugLogWriter, "", log.LstdFlags))
+	server, err := NewServer(*bookingsDSN, *sendgridKey, *stripeSecretKey, *stripePublishableKey, *templatesDir, debugLog)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	rand.Seed(time.Now().UnixNano())
 	m := http.NewServeMux()
-	m.HandleFunc("/checkout", server.HandleCheckout)
-	m.HandleFunc("/checkout/confirmation", server.HandleConfirmation)
+	m.Handle("/checkout", &logHandler{requestLog, server.HandleCheckout})
+	m.Handle("/checkout/confirmation", &logHandler{requestLog, server.HandleConfirmation})
 	if *staticDir != "" {
 		m.Handle("/", http.FileServer(http.Dir(*staticDir)))
 	}
-	http.ListenAndServe(fmt.Sprintf(":%d", *port), handlers.CombinedLoggingHandler(requestLogWriter, m))
+	http.ListenAndServe(fmt.Sprintf(":%d", *port), m)
 }

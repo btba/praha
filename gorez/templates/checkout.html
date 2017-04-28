@@ -110,7 +110,7 @@
       <form class="form-horizontal" action="/checkout/confirmation" method="POST" id="payment-form">
         <input type="hidden" name="TourID" value="{{.TourDetail.ID}}">
         <input type="hidden" name="QuotedTotal" id="quotedTotal">
-	{{if .WarnOnLoad}}
+	{{if .Warn}}
         <div class="row">
           <div class="col-sm-6 col-sm-offset-2">
             <div class="alert alert-warning" role="alert">

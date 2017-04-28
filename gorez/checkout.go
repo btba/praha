@@ -23,33 +23,41 @@ type CheckoutData struct {
 	NumRidersOptions     []int
 	ExpiryYearOptions    []int
 	StripePublishableKey template.JSStr
-	WarnOnLoad           bool
+	Warn                 bool
 }
 
-func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) {
+func (s *Server) checkout(r *http.Request) (data *CheckoutData, warnings []string, appErr *appError) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return nil, warnings, &appError{http.StatusBadRequest, "Error parsing form", err}
 	}
 	var vars CheckoutVars
 	if err := s.decoder.Decode(&vars, r.Form); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return nil, warnings, &appError{http.StatusBadRequest, "Error decoding form values", err}
 	}
 
 	tourDetail, ok, err := s.store.GetTourDetailByID(vars.TourID, maxRiders)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return nil, warnings, &appError{http.StatusInternalServerError, "Server error", fmt.Errorf("GetTourDetailByID: %v", err)}
 		return
 	}
 	if !ok {
-		http.Error(w, fmt.Sprintf("Invalid tour ID %d", vars.TourID), http.StatusBadRequest)
-		return
+		return nil, warnings, &appError{http.StatusBadRequest, fmt.Sprintf("Invalid tour ID %d", vars.TourID), nil}
+	}
+	if tourDetail.NumSpotsRemaining == 0 {
+		return nil, warnings, &appError{http.StatusNotFound, fmt.Sprintf("Tour %d has no availability", vars.TourID), nil}
 	}
 
-	if tourDetail.NumSpotsRemaining == 0 {
-		http.Error(w, "Tour has no availability", http.StatusNotFound)
-		return
+	if tourDetail.Time.Before(time.Now()) {
+		warnings = append(warnings, tourDetail.Time.Format("past:2006/01/02"))
+	}
+	if tourDetail.Full {
+		warnings = append(warnings, "full")
+	}
+	if tourDetail.Cancelled {
+		warnings = append(warnings, "cancelled")
+	}
+	if tourDetail.Deleted {
+		warnings = append(warnings, "deleted")
 	}
 
 	// There's no for-loop in templates, so we construct a list like
@@ -64,20 +72,33 @@ func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) {
 	for y := thisYear; y < thisYear+futureYears; y++ {
 		expiryYearOptions = append(expiryYearOptions, y)
 	}
-	data := &CheckoutData{
+	data = &CheckoutData{
 		TourDetail:           tourDetail,
 		NumRidersOptions:     numRidersOptions,
 		ExpiryYearOptions:    expiryYearOptions,
 		StripePublishableKey: template.JSStr(s.stripePublishableKey),
-		WarnOnLoad:           tourDetail.Time.Before(time.Now()) || tourDetail.Full || tourDetail.Cancelled || tourDetail.Deleted,
+		Warn:                 len(warnings) > 0,
+	}
+	return data, warnings, nil
+}
+
+func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) (code int, warnings []string, summary string) {
+	data, warnings, e := s.checkout(r)
+	if e != nil {
+		s.log.Printf("%v", e.Error)
+		http.Error(w, e.Message, e.Code)
+		return e.Code, warnings, e.Message
 	}
 	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "checkout.html"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		s.log.Printf("%v", err)
+		http.Error(w, "Server error", http.StatusInternalServerError)
+		return http.StatusInternalServerError, warnings, "Error parsing checkout template"
 	}
 	if err := tmpl.Execute(w, data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		s.log.Printf("%v", err)
+		http.Error(w, "Server error", http.StatusInternalServerError)
+		return http.StatusInternalServerError, warnings, "Error executing checkout template"
 	}
+	return http.StatusOK, warnings, fmt.Sprintf("tour:%d", data.TourDetail.ID)
 }

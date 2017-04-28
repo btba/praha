@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 	"path"
 	"strings"
@@ -47,30 +46,25 @@ type ConfirmationData struct {
 	Warn bool
 }
 
-func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
+func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []string, appErr *appError) {
 	if r.Method != "POST" {
-		http.Error(w, "Method must be POST", http.StatusMethodNotAllowed)
-		return
+		return nil, warnings, &appError{http.StatusMethodNotAllowed, "Method must be POST", nil}
 	}
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return nil, warnings, &appError{http.StatusBadRequest, "Error parsing form", err}
 	}
 	var vars ConfirmationVars
 	if err := s.decoder.Decode(&vars, r.PostForm); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return nil, warnings, &appError{http.StatusBadRequest, "Error decoding form values", err}
 	}
 
 	// Look up requested tour.
 	tourDetail, ok, err := s.store.GetTourDetailByID(vars.TourID, maxRiders)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, warnings, &appError{http.StatusInternalServerError, "Server error", fmt.Errorf("GetTourDetailByID: %v", err)}
 	}
 	if !ok {
-		http.Error(w, fmt.Sprintf("Invalid tour ID %d", vars.TourID), http.StatusBadRequest)
-		return
+		return nil, warnings, &appError{http.StatusBadRequest, fmt.Sprintf("Invalid tour ID %d", vars.TourID), nil}
 	}
 
 	// NOTE: These checks are racy, but the conditions are unlikely.
@@ -84,12 +78,22 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 	actualTotal := uint64(float64(vars.NumRiders)*tourDetail.Price*100 + 0.5)
 	quotedTotal := uint64(vars.QuotedTotal*100 + 0.5)
 	if actualTotal != quotedTotal {
-		http.Error(w, fmt.Sprintf("Internal pricing error: actual=%d, quoted=%d", actualTotal, quotedTotal), http.StatusInternalServerError)
-		return
+		return nil, warnings, &appError{http.StatusBadRequest, "Pricing error", fmt.Errorf("actual=%d2, quoted=%d", actualTotal, quotedTotal)}
 	}
-	warn := false
-	if tourDetail.Time.Before(time.Now()) || tourDetail.Full || tourDetail.Cancelled || tourDetail.Deleted || vars.NumRiders > tourDetail.NumSpotsRemaining {
-		warn = true
+	if tourDetail.Time.Before(time.Now()) {
+		warnings = append(warnings, tourDetail.Time.Format("past:2006/01/02"))
+	}
+	if tourDetail.Full {
+		warnings = append(warnings, "full")
+	}
+	if tourDetail.Cancelled {
+		warnings = append(warnings, "cancelled")
+	}
+	if tourDetail.Deleted {
+		warnings = append(warnings, "deleted")
+	}
+	if vars.NumRiders > tourDetail.NumSpotsRemaining {
+		warnings = append(warnings, fmt.Sprintf("riders(%d)>spots(%d)", vars.NumRiders, tourDetail.NumSpotsRemaining))
 	}
 
 	// Trim strings and validate email.
@@ -101,8 +105,7 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		misc   = strings.TrimSpace(vars.Misc)
 	)
 	if email == "" {
-		http.Error(w, "Must enter email address", http.StatusBadRequest)
-		return
+		return nil, warnings, &appError{http.StatusBadRequest, "Must enter email address", nil}
 	}
 
 	// Validate that we have RiderGenders & RiderHeights for all NumRiders.
@@ -110,24 +113,20 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 	var heights []int
 	if tourDetail.HeightsNeeded {
 		if len(vars.RiderGenders) < vars.NumRiders {
-			http.Error(w, fmt.Sprintf("Only provided %d genders for %d riders", len(vars.RiderGenders), vars.NumRiders), http.StatusBadRequest)
-			return
+			return nil, warnings, &appError{http.StatusBadRequest, fmt.Sprintf("Only provided %d genders for %d riders", len(vars.RiderGenders), vars.NumRiders), nil}
 		}
 		for _, g := range vars.RiderGenders[:vars.NumRiders] {
 			if g == "" {
-				http.Error(w, "Must select genders for all riders", http.StatusBadRequest)
-				return
+				return nil, warnings, &appError{http.StatusBadRequest, "Must select genders for all riders", nil}
 			}
 			genders = append(genders, g)
 		}
 		if len(vars.RiderHeights) < vars.NumRiders {
-			http.Error(w, fmt.Sprintf("Only provided %d heights for %d riders", len(vars.RiderHeights), vars.NumRiders), http.StatusBadRequest)
-			return
+			return nil, warnings, &appError{http.StatusBadRequest, fmt.Sprintf("Only provided %d heights for %d riders", len(vars.RiderHeights), vars.NumRiders), nil}
 		}
 		for _, h := range vars.RiderHeights[:vars.NumRiders] {
 			if h == 0 {
-				http.Error(w, "Must select heights for all riders", http.StatusBadRequest)
-				return
+				return nil, warnings, &appError{http.StatusBadRequest, "Must select heights for all riders", nil}
 			}
 			heights = append(heights, h)
 		}
@@ -136,8 +135,7 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 	// Add order to database.
 	orderID, err := s.store.CreateOrder(vars.TourID, vars.NumRiders, genders, heights, actualTotal, name, email, mobile, hotel, misc)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, warnings, &appError{http.StatusInternalServerError, "Server error", fmt.Errorf("CreateOrder: %v", err)}
 	}
 
 	// Charge to Stripe.
@@ -148,8 +146,7 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		Source:   &stripe.SourceParams{Token: vars.StripeToken},
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, warnings, &appError{http.StatusInternalServerError, "Server error", fmt.Errorf("charge.New: %v", err)}
 	}
 
 	// At this point, checkout has succeeded.  Everything below is
@@ -157,22 +154,25 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 
 	// Update order in database to record payment.
 	if err := s.store.UpdateOrderPaymentRecorded(orderID); err != nil {
-		log.Print(err)
+		s.log.Printf("UpdateOrderPaymentRecorded: %v", err)
+		warnings = append(warnings, "updateorder:paymentrecorded")
 	}
 
 	// Email the customer.
-	if tourDetail.AutoConfirm && !warn {
+	if tourDetail.AutoConfirm && len(warnings) == 0 {
 		if err := s.emailCustomer(name, email); err != nil {
-			log.Print(err)
+			s.log.Printf("emailCustomer: %v", err)
+			warnings = append(warnings, "emailcustomer")
 		} else {
 			// Update order in database to record confirmation email.
 			if err := s.store.UpdateOrderConfirmationSent(orderID); err != nil {
-				log.Print(err)
+				s.log.Printf("UpdateOrderConfirmationSent: %v", err)
+				warnings = append(warnings, "updateorder:confirmationsent")
 			}
 		}
 	}
 
-	data := &ConfirmationData{
+	data = &ConfirmationData{
 		TourDetail:   tourDetail,
 		NumRiders:    vars.NumRiders,
 		DisplayTotal: fmt.Sprintf("$%d.%02d", actualTotal/100, actualTotal%100),
@@ -181,17 +181,31 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) {
 		Mobile:       mobile,
 		Hotel:        hotel,
 		Misc:         misc,
-		Warn:         warn,
+		Warn:         len(warnings) > 0,
 	}
+	return data, warnings, nil
+}
+
+func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) (code int, warnings []string, summary string) {
+	data, warnings, e := s.confirm(r)
+	if e != nil {
+		s.log.Printf("%v", e.Error)
+		http.Error(w, e.Message, e.Code)
+		return e.Code, warnings, e.Message
+	}
+	summary = fmt.Sprintf("tour:%d riders:%d %s '%s' <%s>", data.TourDetail.ID, data.NumRiders, data.DisplayTotal, data.Name, data.Email)
 	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "confirmation.html"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		s.log.Printf("%v", err)
+		fmt.Fprint(w, "Reservation accepted") // fallback message
+		return http.StatusOK, append(warnings, "parsetemplate"), summary
 	}
 	if err := tmpl.Execute(w, data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		s.log.Printf("%v", err)
+		fmt.Fprint(w, "Reservation accepted") // fallback message
+		return http.StatusOK, append(warnings, "executetemplate"), summary
 	}
+	return http.StatusOK, warnings, summary
 }
 
 func (s *Server) emailCustomer(name, email string) error {
