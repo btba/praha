@@ -85,7 +85,9 @@ func (s *Server) checkout(r *http.Request) (data *CheckoutData, warnings []strin
 func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) (code int, warnings []string, summary string) {
 	data, warnings, e := s.checkout(r)
 	if e != nil {
-		s.log.Printf("%v", e.Error)
+		if e.Error != nil {
+			s.log.Printf("%s: %v", e.Message, e.Error)
+		}
 		http.Error(w, e.Message, e.Code)
 		return e.Code, warnings, e.Message
 	}

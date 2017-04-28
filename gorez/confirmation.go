@@ -194,9 +194,7 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) (code int, warnings []string, summary string) {
 	data, warnings, e := s.confirm(r)
 	if e != nil {
-		if e.Error == nil {
-			s.log.Printf("%s", e.Message)
-		} else {
+		if e.Error != nil {
 			s.log.Printf("%s: %v", e.Message, e.Error)
 		}
 		http.Error(w, e.Message, e.Code)
