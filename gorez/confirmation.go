@@ -78,7 +78,7 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 	actualTotal := uint64(float64(vars.NumRiders)*tourDetail.Price*100 + 0.5)
 	quotedTotal := uint64(vars.QuotedTotal*100 + 0.5)
 	if actualTotal != quotedTotal {
-		return nil, warnings, &appError{http.StatusBadRequest, "Pricing error", fmt.Errorf("actual=%d2, quoted=%d", actualTotal, quotedTotal)}
+		return nil, warnings, &appError{http.StatusBadRequest, "Pricing error", fmt.Errorf("quoted=%d, actual=%d", quotedTotal, actualTotal)}
 	}
 	if tourDetail.Time.Before(time.Now()) {
 		warnings = append(warnings, tourDetail.Time.Format("past:2006/01/02"))
@@ -189,7 +189,7 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) (code int, warnings []string, summary string) {
 	data, warnings, e := s.confirm(r)
 	if e != nil {
-		s.log.Printf("%v", e.Error)
+		s.log.Printf("%s: %v", e.Message, e.Error)
 		http.Error(w, e.Message, e.Code)
 		return e.Code, warnings, e.Message
 	}
