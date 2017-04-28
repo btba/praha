@@ -130,6 +130,9 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 		hotel  = strings.TrimSpace(vars.Hotel)
 		misc   = strings.TrimSpace(vars.Misc)
 	)
+	if name == "" {
+		warnings = append(warnings, "noname")
+	}
 	if email == "" {
 		warnings = append(warnings, "noemail")
 	}
