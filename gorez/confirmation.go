@@ -98,18 +98,6 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 		return nil, warnings, &appError{http.StatusBadRequest, "Pricing error", fmt.Errorf("quoted=%d, actual=%d", quotedTotal, actualTotal)}
 	}
 
-	// Trim strings and validate email.
-	var (
-		name   = strings.TrimSpace(vars.Name)
-		email  = strings.TrimSpace(vars.Email)
-		mobile = strings.TrimSpace(vars.Mobile)
-		hotel  = strings.TrimSpace(vars.Hotel)
-		misc   = strings.TrimSpace(vars.Misc)
-	)
-	if email == "" {
-		return nil, warnings, &appError{http.StatusBadRequest, "Must enter email address", nil}
-	}
-
 	// Validate that we have RiderGenders & RiderHeights for all NumRiders.
 	var genders []string
 	var heights []int
@@ -132,6 +120,18 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 			}
 			heights = append(heights, h)
 		}
+	}
+
+	// Trim strings and validate email.
+	var (
+		name   = strings.TrimSpace(vars.Name)
+		email  = strings.TrimSpace(vars.Email)
+		mobile = strings.TrimSpace(vars.Mobile)
+		hotel  = strings.TrimSpace(vars.Hotel)
+		misc   = strings.TrimSpace(vars.Misc)
+	)
+	if email == "" {
+		warnings = append(warnings, "noemail")
 	}
 
 	// Add order to database.
