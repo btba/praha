@@ -59,26 +59,19 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 	}
 
 	// Look up requested tour.
-	tourDetail, ok, err := s.store.GetTourDetailByID(vars.TourID, maxRiders)
-	if err != nil {
-		return nil, warnings, &appError{http.StatusInternalServerError, "Server error", fmt.Errorf("GetTourDetailByID: %v", err)}
-	}
-	if !ok {
-		return nil, warnings, &appError{http.StatusBadRequest, fmt.Sprintf("Invalid tour ID %d", vars.TourID), nil}
-	}
-
+	//
 	// NOTE: These checks are racy, but the conditions are unlikely.
 	// - Tour deleted by admin
 	// - Tour fields changed by admin (price, time, full, cancelled, deleted)
 	// - Tour number of riders changed (due to concurrent purchase)
 	// We could do the reads/checks/write in a transaction, retrying
 	// when the commit fails due to a change in the number of riders.
-	//
-	// Compute totals in cents [float64(13.57) -> uint64(1357)] and validate.
-	actualTotal := uint64(float64(vars.NumRiders)*tourDetail.Price*100 + 0.5)
-	quotedTotal := uint64(vars.QuotedTotal*100 + 0.5)
-	if actualTotal != quotedTotal {
-		return nil, warnings, &appError{http.StatusBadRequest, "Pricing error", fmt.Errorf("quoted=%d, actual=%d", quotedTotal, actualTotal)}
+	tourDetail, ok, err := s.store.GetTourDetailByID(vars.TourID, maxRiders)
+	if err != nil {
+		return nil, warnings, &appError{http.StatusInternalServerError, "Server error", fmt.Errorf("GetTourDetailByID: %v", err)}
+	}
+	if !ok {
+		return nil, warnings, &appError{http.StatusBadRequest, fmt.Sprintf("Invalid tour ID %d", vars.TourID), nil}
 	}
 	if tourDetail.Time.Before(time.Now()) {
 		warnings = append(warnings, tourDetail.Time.Format("past:2006/01/02"))
@@ -92,8 +85,17 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 	if tourDetail.Deleted {
 		warnings = append(warnings, "deleted")
 	}
-	if vars.NumRiders > tourDetail.NumSpotsRemaining {
+	switch {
+	case vars.NumRiders < 1:
+		return nil, warnings, &appError{http.StatusBadRequest, "NumRiders must be at least 1", nil}
+	case vars.NumRiders > tourDetail.NumSpotsRemaining:
 		warnings = append(warnings, fmt.Sprintf("riders(%d)>spots(%d)", vars.NumRiders, tourDetail.NumSpotsRemaining))
+	}
+	// Compute totals in cents [float64(13.57) -> uint64(1357)] and validate.
+	actualTotal := uint64(float64(vars.NumRiders)*tourDetail.Price*100 + 0.5)
+	quotedTotal := uint64(vars.QuotedTotal*100 + 0.5)
+	if actualTotal != quotedTotal {
+		return nil, warnings, &appError{http.StatusBadRequest, "Pricing error", fmt.Errorf("quoted=%d, actual=%d", quotedTotal, actualTotal)}
 	}
 
 	// Trim strings and validate email.
@@ -189,7 +191,11 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) (code int, warnings []string, summary string) {
 	data, warnings, e := s.confirm(r)
 	if e != nil {
-		s.log.Printf("%s: %v", e.Message, e.Error)
+		if e.Error == nil {
+			s.log.Printf("%s", e.Message)
+		} else {
+			s.log.Printf("%s: %v", e.Message, e.Error)
+		}
 		http.Error(w, e.Message, e.Code)
 		return e.Code, warnings, e.Message
 	}
