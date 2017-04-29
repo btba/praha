@@ -14,13 +14,17 @@ import (
 	"github.com/stripe/stripe-go/charge"
 )
 
+type RiderVars struct {
+	Gender string
+	Height int
+}
+
 // ConfirmationVars represents the form inputs.
 type ConfirmationVars struct {
-	TourID       int32
-	NumRiders    int
-	RiderGenders []string
-	RiderHeights []int
-	QuotedTotal  float64
+	TourID      int32
+	NumRiders   int
+	Riders      []RiderVars
+	QuotedTotal float64
 
 	Name        string
 	StripeToken string
@@ -98,27 +102,22 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 		return nil, warnings, &appError{http.StatusBadRequest, "Pricing error", fmt.Errorf("quoted=%d, actual=%d", quotedTotal, actualTotal)}
 	}
 
-	// Validate that we have RiderGenders & RiderHeights for all NumRiders.
+	// Validate that we have genders & heights for all NumRiders.
 	var genders []string
 	var heights []int
 	if tourDetail.HeightsNeeded {
-		if len(vars.RiderGenders) < vars.NumRiders {
-			return nil, warnings, &appError{http.StatusBadRequest, fmt.Sprintf("Only provided %d genders for %d riders", len(vars.RiderGenders), vars.NumRiders), nil}
+		if len(vars.Riders) < vars.NumRiders {
+			return nil, warnings, &appError{http.StatusBadRequest, fmt.Sprintf("Only provided %d genders/heights for %d riders", len(vars.Riders), vars.NumRiders), nil}
 		}
-		for _, g := range vars.RiderGenders[:vars.NumRiders] {
-			if g == "" {
+		for _, r := range vars.Riders[:vars.NumRiders] {
+			if r.Gender == "" {
 				return nil, warnings, &appError{http.StatusBadRequest, "Must select genders for all riders", nil}
 			}
-			genders = append(genders, g)
-		}
-		if len(vars.RiderHeights) < vars.NumRiders {
-			return nil, warnings, &appError{http.StatusBadRequest, fmt.Sprintf("Only provided %d heights for %d riders", len(vars.RiderHeights), vars.NumRiders), nil}
-		}
-		for _, h := range vars.RiderHeights[:vars.NumRiders] {
-			if h == 0 {
+			if r.Height == 0 {
 				return nil, warnings, &appError{http.StatusBadRequest, "Must select heights for all riders", nil}
 			}
-			heights = append(heights, h)
+			genders = append(genders, r.Gender)
+			heights = append(heights, r.Height)
 		}
 	}
 

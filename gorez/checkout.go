@@ -17,10 +17,15 @@ type CheckoutVars struct {
 	TourID int32 `schema:"TourId"`
 }
 
+type NumRidersOption struct {
+	Index   int
+	Display int
+}
+
 // CheckoutData is the data passed to the template.
 type CheckoutData struct {
 	TourDetail           *TourDetail
-	NumRidersOptions     []int
+	NumRidersOptions     []*NumRidersOption
 	ExpiryYearOptions    []int
 	StripePublishableKey template.JSStr
 	Warn                 bool
@@ -61,10 +66,11 @@ func (s *Server) checkout(r *http.Request) (data *CheckoutData, warnings []strin
 	}
 
 	// There's no for-loop in templates, so we construct a list like
-	// []int{1, 2, 3, 4, 5} for the user to select the number of riders.
-	var numRidersOptions []int
-	for i := 1; i <= tourDetail.NumSpotsRemaining; i++ {
-		numRidersOptions = append(numRidersOptions, i)
+	// []*NumRidersOption{{0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}} for
+	// the user to select the number of riders.
+	var numRidersOptions []*NumRidersOption
+	for i := 0; i < tourDetail.NumSpotsRemaining; i++ {
+		numRidersOptions = append(numRidersOptions, &NumRidersOption{i, i + 1})
 	}
 	// Same with number of years: []int{2017, 2018, ..., 2026}
 	thisYear := time.Now().Year()
