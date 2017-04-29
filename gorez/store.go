@@ -27,9 +27,14 @@ type TourDetail struct {
 	NumSpotsRemaining int
 }
 
+type Rider struct {
+	Gender string
+	Height int
+}
+
 type Store interface {
 	GetTourDetailByID(tourID int32, maxRiders int) (*TourDetail, bool, error)
-	CreateOrder(tourID int32, numRiders int, genders []string, heights []int, total uint64, name, email, mobile, hotel, misc string) (int32, error)
+	CreateOrder(tourID int32, numRiders int, riders []Rider, total uint64, name, email, mobile, hotel, misc string) (int32, error)
 	UpdateOrderPaymentRecorded(orderID int32) error
 	UpdateOrderConfirmationSent(orderID int32) error
 }
@@ -108,31 +113,29 @@ func priceString(total uint64) string {
 	return fmt.Sprintf("%d", total/100)
 }
 
-func heightsString(genders []string, heights []int) string {
+func heightsString(riders []Rider) string {
 	var s []string
-	for i, g := range genders {
+	for _, r := range riders {
 		var h string
-		if i < len(heights) {
-			switch heights[i] {
-			case 0, -1:
-				h = "??"
-			case 1:
-				h = "<4'8"
-			case 100:
-				h = ">6'6"
-			default:
-				h = fmt.Sprintf("%d'%d", heights[i]/12, heights[i]%12)
-			}
+		switch {
+		case r.Height <= 0:
+			h = "??"
+		case r.Height < 56:
+			h = "<4'8"
+		case r.Height > 78:
+			h = ">6'6"
+		default:
+			h = fmt.Sprintf("%d'%d", r.Height/12, r.Height%12)
 		}
-		s = append(s, g+h)
+		s = append(s, r.Gender+h)
 	}
 	return strings.Join(s, " ")
 }
 
-func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, tourID int32, numRiders int, genders []string, heights []int, total uint64, name, email, mobile, hotel, misc string) (int32, error) {
+func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, tourID int32, numRiders int, riders []Rider, total uint64, name, email, mobile, hotel, misc string) (int32, error) {
 	result, err := tx.Exec(
 		"INSERT INTO OrderMain (CustName, CustEmail, Hotel, Mobile, DatePlaced, Message, Heights) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		name, email, hotel, mobile, time.Now(), misc, heightsString(genders, heights))
+		name, email, hotel, mobile, time.Now(), misc, heightsString(riders))
 	if err != nil {
 		return 0, err
 	}
@@ -149,12 +152,12 @@ func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, tourID int32, numRiders int
 	return int32(orderID), nil
 }
 
-func (s *RemoteStore) CreateOrder(tourID int32, numRiders int, genders []string, heights []int, total uint64, name, email, mobile, hotel, misc string) (int32, error) {
+func (s *RemoteStore) CreateOrder(tourID int32, numRiders int, riders []Rider, total uint64, name, email, mobile, hotel, misc string) (int32, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return 0, err
 	}
-	orderID, err := s.prepareCreateOrder(tx, tourID, numRiders, genders, heights, total, name, email, mobile, hotel, misc)
+	orderID, err := s.prepareCreateOrder(tx, tourID, numRiders, riders, total, name, email, mobile, hotel, misc)
 	if err != nil {
 		tx.Rollback()
 		return 0, err

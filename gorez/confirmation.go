@@ -102,22 +102,27 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 		return nil, warnings, &appError{http.StatusBadRequest, "Pricing error", fmt.Errorf("quoted=%d, actual=%d", quotedTotal, actualTotal)}
 	}
 
-	// Validate that we have genders & heights for all NumRiders.
-	var genders []string
-	var heights []int
+	// Validate genders & heights.
+	var riders []Rider
 	if tourDetail.HeightsNeeded {
+		warn := false
 		if len(vars.Riders) < vars.NumRiders {
-			return nil, warnings, &appError{http.StatusBadRequest, fmt.Sprintf("Only provided %d genders/heights for %d riders", len(vars.Riders), vars.NumRiders), nil}
+			warn = true
+		} else {
+			vars.Riders = vars.Riders[:vars.NumRiders]
 		}
-		for _, r := range vars.Riders[:vars.NumRiders] {
-			if r.Gender == "" {
-				return nil, warnings, &appError{http.StatusBadRequest, "Must select genders for all riders", nil}
+		for _, r := range vars.Riders {
+			if r.Gender != "F" && r.Gender != "M" && r.Gender != "X" {
+				r.Gender = "?"
+				warn = true
 			}
-			if r.Height == 0 {
-				return nil, warnings, &appError{http.StatusBadRequest, "Must select heights for all riders", nil}
+			if r.Height <= 0 {
+				warn = true
 			}
-			genders = append(genders, r.Gender)
-			heights = append(heights, r.Height)
+			riders = append(riders, Rider{r.Gender, r.Height})
+		}
+		if warn {
+			warnings = append(warnings, "badheights")
 		}
 	}
 
@@ -137,7 +142,7 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 	}
 
 	// Add order to database.
-	orderID, err := s.store.CreateOrder(vars.TourID, vars.NumRiders, genders, heights, actualTotal, name, email, mobile, hotel, misc)
+	orderID, err := s.store.CreateOrder(vars.TourID, vars.NumRiders, riders, actualTotal, name, email, mobile, hotel, misc)
 	if err != nil {
 		return nil, warnings, &appError{http.StatusInternalServerError, "Server error", fmt.Errorf("CreateOrder: %v", err)}
 	}
