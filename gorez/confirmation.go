@@ -47,7 +47,8 @@ type ConfirmationData struct {
 	Hotel  string
 	Misc   string
 
-	Warn bool
+	Warn       bool
+	TrackingID string
 }
 
 func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []string, appErr *appError) {
@@ -191,6 +192,7 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 		Hotel:        hotel,
 		Misc:         misc,
 		Warn:         len(warnings) > 0,
+		TrackingID:   s.trackingID,
 	}
 	return data, warnings, nil
 }
