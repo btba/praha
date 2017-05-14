@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,8 +48,12 @@ type ConfirmationData struct {
 	Hotel  string
 	Misc   string
 
-	Warn       bool
-	TrackingID string
+	Warn            bool
+	TrackingID      string
+	ConversionID    template.JS
+	ConversionLabel string
+	CDATABegin      template.JS
+	CDATAEnd        template.JS
 }
 
 func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []string, appErr *appError) {
@@ -183,16 +188,20 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 	}
 
 	data = &ConfirmationData{
-		TourDetail:   tourDetail,
-		NumRiders:    vars.NumRiders,
-		DisplayTotal: fmt.Sprintf("$%d.%02d", actualTotal/100, actualTotal%100),
-		Name:         name,
-		Email:        email,
-		Mobile:       mobile,
-		Hotel:        hotel,
-		Misc:         misc,
-		Warn:         len(warnings) > 0,
-		TrackingID:   s.trackingID,
+		TourDetail:      tourDetail,
+		NumRiders:       vars.NumRiders,
+		DisplayTotal:    fmt.Sprintf("$%d.%02d", actualTotal/100, actualTotal%100),
+		Name:            name,
+		Email:           email,
+		Mobile:          mobile,
+		Hotel:           hotel,
+		Misc:            misc,
+		Warn:            len(warnings) > 0,
+		TrackingID:      s.trackingID,
+		ConversionID:    template.JS(strconv.Itoa(s.conversionID)),
+		ConversionLabel: s.conversionLabel,
+		CDATABegin:      template.JS("/* <![CDATA[ */"),
+		CDATAEnd:        template.JS("/* ]]> */"),
 	}
 	return data, warnings, nil
 }

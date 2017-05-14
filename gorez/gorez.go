@@ -25,6 +25,8 @@ var (
 	requestLog           = flag.String("request_log", "", "file for request logs (empty means stdout)")
 	debugLog             = flag.String("debug_log", "", "file for debug logs (empty means stdout)")
 	trackingID           = flag.String("tracking_id", "", "Google Analytics tracking ID")
+	conversionID         = flag.Int("conversion_id", 0, "Google AdWords conversion ID")
+	conversionLabel      = flag.String("conversion_label", "", "Google AdWords conversion label")
 )
 
 const (
@@ -38,11 +40,13 @@ type Server struct {
 	stripePublishableKey string
 	templatesDir         string
 	trackingID           string
+	conversionID         int
+	conversionLabel      string
 	decoder              *schema.Decoder
 	log                  *log.Logger
 }
 
-func NewServer(dsn, sendgridKey, stripeSecretKey, stripePublishableKey, templatesDir, trackingID string, log *log.Logger) (*Server, error) {
+func NewServer(dsn, sendgridKey, stripeSecretKey, stripePublishableKey, templatesDir, trackingID string, conversionID int, conversionLabel string, log *log.Logger) (*Server, error) {
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
@@ -57,6 +61,8 @@ func NewServer(dsn, sendgridKey, stripeSecretKey, stripePublishableKey, template
 		stripePublishableKey: stripePublishableKey,
 		templatesDir:         templatesDir,
 		trackingID:           trackingID,
+		conversionID:         conversionID,
+		conversionLabel:      conversionLabel,
 		decoder:              schema.NewDecoder(),
 		log:                  log,
 	}, nil
@@ -107,7 +113,7 @@ func main() {
 	}
 	debugLog := log.New(debugLogWriter, "", log.LstdFlags|log.Lshortfile)
 
-	server, err := NewServer(*bookingsDSN, *sendgridKey, *stripeSecretKey, *stripePublishableKey, *templatesDir, *trackingID, debugLog)
+	server, err := NewServer(*bookingsDSN, *sendgridKey, *stripeSecretKey, *stripePublishableKey, *templatesDir, *trackingID, *conversionID, *conversionLabel, debugLog)
 	if err != nil {
 		log.Fatal(err)
 	}
