@@ -15,18 +15,18 @@ import (
 )
 
 var (
-	port                 = flag.Int("port", 8080, "port to run web server on")
-	bookingsDSN          = flag.String("bookings_dsn", "", "data source name for bookings database")
-	sendgridKey          = flag.String("sendgrid_key", "", "SendGrid API key")
-	stripeSecretKey      = flag.String("stripe_secret_key", "", "Stripe key used by server")
-	stripePublishableKey = flag.String("stripe_publishable_key", "", "Stripe key to embed in Javascript")
-	staticDir            = flag.String("static_dir", "", "if provided, directory for static files")
-	templatesDir         = flag.String("templates_dir", "templates", "directory containing templates")
-	requestLog           = flag.String("request_log", "", "file for request logs (empty means stdout)")
-	debugLog             = flag.String("debug_log", "", "file for debug logs (empty means stdout)")
-	trackingID           = flag.String("tracking_id", "", "Google Analytics tracking ID")
-	conversionID         = flag.Int("conversion_id", 0, "Google AdWords conversion ID")
-	conversionLabel      = flag.String("conversion_label", "", "Google AdWords conversion label")
+	port                  = flag.Int("port", 8080, "port to run web server on")
+	bookingsDSN           = flag.String("bookings_dsn", "", "data source name for bookings database")
+	sendgridKey           = flag.String("sendgrid_key", "", "SendGrid API key")
+	stripeSecretKey       = flag.String("stripe_secret_key", "", "Stripe key used by server")
+	stripePublishableKey  = flag.String("stripe_publishable_key", "", "Stripe key to embed in Javascript")
+	staticDir             = flag.String("static_dir", "", "if provided, directory for static files")
+	templatesDir          = flag.String("templates_dir", "templates", "directory containing templates")
+	requestLog            = flag.String("request_log", "", "file for request logs (empty means stdout)")
+	debugLog              = flag.String("debug_log", "", "file for debug logs (empty means stdout)")
+	googleTrackingID      = flag.String("google_tracking_id", "", "Google Analytics tracking ID")
+	googleConversionID    = flag.Int("google_conversion_id", 0, "Google AdWords conversion ID")
+	googleConversionLabel = flag.String("google_conversion_label", "", "Google AdWords conversion label")
 )
 
 const (
@@ -34,19 +34,19 @@ const (
 )
 
 type Server struct {
-	store                Store
-	sendgridKey          string
-	stripeSecretKey      string
-	stripePublishableKey string
-	templatesDir         string
-	trackingID           string
-	conversionID         int
-	conversionLabel      string
-	decoder              *schema.Decoder
-	log                  *log.Logger
+	store                 Store
+	sendgridKey           string
+	stripeSecretKey       string
+	stripePublishableKey  string
+	templatesDir          string
+	googleTrackingID      string
+	googleConversionID    int
+	googleConversionLabel string
+	decoder               *schema.Decoder
+	log                   *log.Logger
 }
 
-func NewServer(dsn, sendgridKey, stripeSecretKey, stripePublishableKey, templatesDir, trackingID string, conversionID int, conversionLabel string, log *log.Logger) (*Server, error) {
+func NewServer(dsn, sendgridKey, stripeSecretKey, stripePublishableKey, templatesDir, googleTrackingID string, googleConversionID int, googleConversionLabel string, log *log.Logger) (*Server, error) {
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
@@ -55,16 +55,16 @@ func NewServer(dsn, sendgridKey, stripeSecretKey, stripePublishableKey, template
 		return nil, err
 	}
 	return &Server{
-		store:                &RemoteStore{db},
-		sendgridKey:          sendgridKey,
-		stripeSecretKey:      stripeSecretKey,
-		stripePublishableKey: stripePublishableKey,
-		templatesDir:         templatesDir,
-		trackingID:           trackingID,
-		conversionID:         conversionID,
-		conversionLabel:      conversionLabel,
-		decoder:              schema.NewDecoder(),
-		log:                  log,
+		store:                 &RemoteStore{db},
+		sendgridKey:           sendgridKey,
+		stripeSecretKey:       stripeSecretKey,
+		stripePublishableKey:  stripePublishableKey,
+		templatesDir:          templatesDir,
+		googleTrackingID:      googleTrackingID,
+		googleConversionID:    googleConversionID,
+		googleConversionLabel: googleConversionLabel,
+		decoder:               schema.NewDecoder(),
+		log:                   log,
 	}, nil
 }
 
@@ -113,7 +113,7 @@ func main() {
 	}
 	debugLog := log.New(debugLogWriter, "", log.LstdFlags|log.Lshortfile)
 
-	server, err := NewServer(*bookingsDSN, *sendgridKey, *stripeSecretKey, *stripePublishableKey, *templatesDir, *trackingID, *conversionID, *conversionLabel, debugLog)
+	server, err := NewServer(*bookingsDSN, *sendgridKey, *stripeSecretKey, *stripePublishableKey, *templatesDir, *googleTrackingID, *googleConversionID, *googleConversionLabel, debugLog)
 	if err != nil {
 		log.Fatal(err)
 	}

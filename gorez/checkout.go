@@ -29,7 +29,7 @@ type CheckoutData struct {
 	ExpiryYearOptions    []int
 	StripePublishableKey template.JSStr
 	Warn                 bool
-	TrackingID           string
+	GoogleTrackingID     string
 }
 
 func (s *Server) checkout(r *http.Request) (data *CheckoutData, warnings []string, appErr *appError) {
@@ -85,7 +85,7 @@ func (s *Server) checkout(r *http.Request) (data *CheckoutData, warnings []strin
 		ExpiryYearOptions:    expiryYearOptions,
 		StripePublishableKey: template.JSStr(s.stripePublishableKey),
 		Warn:                 len(warnings) > 0,
-		TrackingID:           s.trackingID,
+		GoogleTrackingID:     s.googleTrackingID,
 	}
 	return data, warnings, nil
 }
