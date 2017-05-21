@@ -225,20 +225,20 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 	if !knownConfCodes[tourDetail.ConfCode] {
 		warnings = append(warnings, fmt.Sprintf("unknownconfcode:%s", tourDetail.ConfCode))
 	}
-	if tourDetail.AutoConfirm && len(warnings) == 0 {
-		subject := fmt.Sprintf("%s Tour %s Bike Tour Confirmation", tourDetail.Time.Format("January 2"), tourDetail.Code)
-		if err := s.emailCustomer(name, email, subject, buf.String()); err != nil {
-			s.log.Printf("emailCustomer: %v", err)
-			warnings = append(warnings, "emailcustomer")
-		} else {
-			// Update order in database to record confirmation email.
-			if err := s.store.UpdateOrderConfirmationSent(orderID); err != nil {
-				s.log.Printf("UpdateOrderConfirmationSent: %v", err)
-				warnings = append(warnings, "updateorder:confirmationsent")
-			}
+	emailCustomer := tourDetail.AutoConfirm && len(warnings) == 0
+	subject := fmt.Sprintf("%s Tour %s Bike Tour Confirmation", tourDetail.Time.Format("January 2"), tourDetail.Code)
+	if err := s.sendEmail(emailCustomer, name, email, subject, buf.String()); err != nil {
+		s.log.Printf("sendemail: %v", err)
+		warnings = append(warnings, "sendemail")
+		return data, warnings, nil
+	}
+	if emailCustomer {
+		// Update order in database to record confirmation email.
+		if err := s.store.UpdateOrderConfirmationSent(orderID); err != nil {
+			s.log.Printf("UpdateOrderConfirmationSent: %v", err)
+			warnings = append(warnings, "updateorder:confirmationsent")
 		}
 	}
-
 	return data, warnings, nil
 }
 
@@ -266,14 +266,22 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) (cod
 	return http.StatusOK, warnings, summary
 }
 
-func (s *Server) emailCustomer(name, email, subject, body string) error {
-	from := mail.NewEmail("Bike the Big Apple reservations", "reservations@bikethebigapple.com")
-	to := mail.NewEmail(name, email)
-	bcc := mail.NewEmail("", "reservations@bikethebigapple.com")
-	content := mail.NewContent("text/plain", body)
-	m := mail.NewV3MailInit(from, subject, to, content)
-	m.Personalizations[0].AddBCCs(bcc)
-
+func (s *Server) sendEmail(emailCustomer bool, name, email, subject, body string) error {
+	var m *mail.SGMailV3
+	if emailCustomer {
+		from := mail.NewEmail("Bike the Big Apple reservations", "reservations@bikethebigapple.com")
+		to := mail.NewEmail(name, email)
+		bcc := mail.NewEmail("", "reservations@bikethebigapple.com")
+		content := mail.NewContent("text/plain", body)
+		m = mail.NewV3MailInit(from, subject, to, content)
+		m.Personalizations[0].AddBCCs(bcc)
+	} else {
+		from := mail.NewEmail("Bike the Big Apple reservations", "reservations@bikethebigapple.com")
+		to := mail.NewEmail("Bike the Big Apple reservations", "reservations@bikethebigapple.com")
+		subject = "NO CONF SENT | " + subject
+		content := mail.NewContent("text/plain", body)
+		m = mail.NewV3MailInit(from, subject, to, content)
+	}
 	request := sendgrid.GetRequest(s.sendgridKey, "/v3/mail/send", "https://api.sendgrid.com")
 	request.Method = "POST"
 	request.Body = mail.GetRequestBody(m)
