@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -54,6 +55,19 @@ type ConfirmationData struct {
 	GoogleConversionLabel string
 	CDATABegin            template.JS
 	CDATAEnd              template.JS
+}
+
+var knownConfCodes = map[string]bool{
+	"110SouthSt": true,
+	"124th":      true,
+	"60thSt":     true,
+	"A-Roger":    true,
+	"C-Roger":    true,
+	"D-Carlos":   true,
+	"E-Carlos":   true,
+	"F-Carlos":   true,
+	"Gen-Carlos": true,
+	"LIC-Carlos": true,
 }
 
 func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []string, appErr *appError) {
@@ -173,20 +187,7 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 		warnings = append(warnings, "updateorder:paymentrecorded")
 	}
 
-	// Email the customer.
-	if tourDetail.AutoConfirm && len(warnings) == 0 {
-		if err := s.emailCustomer(name, email); err != nil {
-			s.log.Printf("emailCustomer: %v", err)
-			warnings = append(warnings, "emailcustomer")
-		} else {
-			// Update order in database to record confirmation email.
-			if err := s.store.UpdateOrderConfirmationSent(orderID); err != nil {
-				s.log.Printf("UpdateOrderConfirmationSent: %v", err)
-				warnings = append(warnings, "updateorder:confirmationsent")
-			}
-		}
-	}
-
+	// Gather data for email & web templates.
 	data = &ConfirmationData{
 		TourDetail:            tourDetail,
 		NumRiders:             vars.NumRiders,
@@ -203,6 +204,41 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 		CDATABegin:            template.JS("/* <![CDATA[ */"),
 		CDATAEnd:              template.JS("/* ]]> */"),
 	}
+
+	// Email the customer.
+	if s.emailTemplatesDir == "" {
+		warnings = append(warnings, "noemailtemplate")
+		return data, warnings, nil
+	}
+	tmpl, err := template.ParseFiles(path.Join(s.emailTemplatesDir, "confirmation.txt"))
+	if err != nil {
+		s.log.Printf("ParseFiles for email template: %v", err)
+		warnings = append(warnings, "parseemailtemplate")
+		return data, warnings, nil
+	}
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		s.log.Printf("Execute email template: %v", err)
+		warnings = append(warnings, "executeemailtemplate")
+		return data, warnings, nil
+	}
+	if !knownConfCodes[tourDetail.ConfCode] {
+		warnings = append(warnings, fmt.Sprintf("unknownconfcode:%s", tourDetail.ConfCode))
+	}
+	if tourDetail.AutoConfirm && len(warnings) == 0 {
+		subject := fmt.Sprintf("%s Tour %s Bike Tour Confirmation", tourDetail.Time.Format("January 2"), tourDetail.Code)
+		if err := s.emailCustomer(name, email, subject, buf.String()); err != nil {
+			s.log.Printf("emailCustomer: %v", err)
+			warnings = append(warnings, "emailcustomer")
+		} else {
+			// Update order in database to record confirmation email.
+			if err := s.store.UpdateOrderConfirmationSent(orderID); err != nil {
+				s.log.Printf("UpdateOrderConfirmationSent: %v", err)
+				warnings = append(warnings, "updateorder:confirmationsent")
+			}
+		}
+	}
+
 	return data, warnings, nil
 }
 
@@ -230,12 +266,13 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) (cod
 	return http.StatusOK, warnings, summary
 }
 
-func (s *Server) emailCustomer(name, email string) error {
-	from := mail.NewEmail("Bike the Big Apple Reservations", "reservations@bikethebigapple.com")
-	subject := "Bike the Big Apple confirmation"
+func (s *Server) emailCustomer(name, email, subject, body string) error {
+	from := mail.NewEmail("Bike the Big Apple reservations", "reservations@bikethebigapple.com")
 	to := mail.NewEmail(name, email)
-	content := mail.NewContent("text/plain", "Testing testing 123")
+	bcc := mail.NewEmail("", "reservations@bikethebigapple.com")
+	content := mail.NewContent("text/plain", body)
 	m := mail.NewV3MailInit(from, subject, to, content)
+	m.Personalizations[0].AddBCCs(bcc)
 
 	request := sendgrid.GetRequest(s.sendgridKey, "/v3/mail/send", "https://api.sendgrid.com")
 	request.Method = "POST"

@@ -13,6 +13,7 @@ type Tour struct {
 	ID            int32
 	Code          string
 	Time          time.Time
+	ConfCode      string
 	AutoConfirm   bool
 	Full          bool
 	Cancelled     bool
@@ -48,6 +49,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 		id            int32
 		code          sql.NullString
 		time          mysql.NullTime
+		confCode      sql.NullString
 		autoConfirm   sql.NullBool
 		full          sql.NullBool
 		cancelled     sql.NullBool
@@ -62,6 +64,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 		"SELECT Master.TourID, "+
 		"    Master.TourCode, "+
 		"    Master.TourDateTime, "+
+		"    Master.ConfCode, "+
 		"    Master.AutoConfirm <> 0, "+
 		"    Master.TourFull, "+
 		"    Master.Cancelled, "+
@@ -80,7 +83,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 		") AS Riders ON Master.TourID = Riders.TourID "+
 		"WHERE Master.TourID = ?",
 		tourID)
-	err := row.Scan(&id, &code, &time, &autoConfirm, &full, &cancelled, &riderLimit, &heightsNeeded, &deleted, &longName, &price, &numRiders)
+	err := row.Scan(&id, &code, &time, &confCode, &autoConfirm, &full, &cancelled, &riderLimit, &heightsNeeded, &deleted, &longName, &price, &numRiders)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, false, nil
@@ -92,6 +95,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 			ID:            id,
 			Code:          code.String,
 			Time:          time.Time,
+			ConfCode:      confCode.String,
 			AutoConfirm:   autoConfirm.Bool,
 			Full:          full.Bool,
 			Cancelled:     cancelled.Bool,

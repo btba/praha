@@ -22,6 +22,7 @@ var (
 	stripePublishableKey  = flag.String("stripe_publishable_key", "", "Stripe key to embed in Javascript")
 	staticDir             = flag.String("static_dir", "", "if provided, directory for static files")
 	templatesDir          = flag.String("templates_dir", "templates", "directory containing templates")
+	emailTemplatesDir     = flag.String("email_templates_dir", "", "directory containing email templates")
 	requestLog            = flag.String("request_log", "", "file for request logs (empty means stdout)")
 	debugLog              = flag.String("debug_log", "", "file for debug logs (empty means stdout)")
 	googleTrackingID      = flag.String("google_tracking_id", "", "Google Analytics tracking ID")
@@ -39,6 +40,7 @@ type Server struct {
 	stripeSecretKey       string
 	stripePublishableKey  string
 	templatesDir          string
+	emailTemplatesDir     string
 	googleTrackingID      string
 	googleConversionID    int
 	googleConversionLabel string
@@ -46,7 +48,7 @@ type Server struct {
 	log                   *log.Logger
 }
 
-func NewServer(dsn, sendgridKey, stripeSecretKey, stripePublishableKey, templatesDir, googleTrackingID string, googleConversionID int, googleConversionLabel string, log *log.Logger) (*Server, error) {
+func NewServer(dsn, sendgridKey, stripeSecretKey, stripePublishableKey, templatesDir, emailTemplatesDir, googleTrackingID string, googleConversionID int, googleConversionLabel string, log *log.Logger) (*Server, error) {
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
@@ -60,6 +62,7 @@ func NewServer(dsn, sendgridKey, stripeSecretKey, stripePublishableKey, template
 		stripeSecretKey:       stripeSecretKey,
 		stripePublishableKey:  stripePublishableKey,
 		templatesDir:          templatesDir,
+		emailTemplatesDir:     emailTemplatesDir,
 		googleTrackingID:      googleTrackingID,
 		googleConversionID:    googleConversionID,
 		googleConversionLabel: googleConversionLabel,
@@ -113,7 +116,7 @@ func main() {
 	}
 	debugLog := log.New(debugLogWriter, "", log.LstdFlags|log.Lshortfile)
 
-	server, err := NewServer(*bookingsDSN, *sendgridKey, *stripeSecretKey, *stripePublishableKey, *templatesDir, *googleTrackingID, *googleConversionID, *googleConversionLabel, debugLog)
+	server, err := NewServer(*bookingsDSN, *sendgridKey, *stripeSecretKey, *stripePublishableKey, *templatesDir, *emailTemplatesDir, *googleTrackingID, *googleConversionID, *googleConversionLabel, debugLog)
 	if err != nil {
 		log.Fatal(err)
 	}
