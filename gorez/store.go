@@ -69,7 +69,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 		"    Master.TourFull, "+
 		"    Master.Cancelled, "+
 		"    Master.RiderLimit, "+
-		"    Master.HeightsNeeded IS NOT NULL, "+
+		"    Master.HeightsNeeded <> 0, "+
 		"    Master.Deleted, "+
 		"    MasterTourInfo.LongName, "+
 		"    MasterTourInfo.Price, "+
