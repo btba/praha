@@ -52,14 +52,15 @@
       <div class="alert alert-warning" role="alert">
         WARNING: We have recorded your information and payment, but we
         cannot confirm your reservation at this time.  Please contact
-        reservations@bikethebigapple.com immediately regarding your
-        reservation.
+        <a href="mailto:explore@bikethebigapple.com">explore@bikethebigapple.com</a>
+        immediately regarding your reservation.
       </div>
       {{else}}
       <div class="alert alert-info" role="alert">
         Thank you for your reservation. Please review the details
         below; if anything is incorrect, contact
-        reservations@bikethebigapple.com immediately.
+        <a href="mailto:explore@bikethebigapple.com">explore@bikethebigapple.com</a>
+        immediately.
       </div>
       {{end}}
       <dl class="dl-horizontal">
@@ -83,6 +84,8 @@
         <dt>Notes</dt>
         <dd>{{.Misc}}</dd>
       </dl>
+      <a href="https://www.bikethebigapple.com/" class="btn btn-primary btn-lg">Return to BIKE THE BIG APPLE to book more tours</a>
+      <br><br><br><br>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
