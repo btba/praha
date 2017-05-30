@@ -37,7 +37,8 @@ type ConfirmationVars struct {
 	Misc   string
 }
 
-// ConfirmationData is the data passed to the template.
+// ConfirmationData is the data passed to the templates for the
+// customer email, BTBA email, and web response.
 type ConfirmationData struct {
 	TourDetail   *TourDetail
 	NumRiders    int
@@ -55,6 +56,9 @@ type ConfirmationData struct {
 	GoogleConversionLabel string
 	CDATABegin            template.JS
 	CDATAEnd              template.JS
+
+	NewTotalRiders int
+	Teams          []*Team
 }
 
 var knownConfCodes = map[string]bool{
@@ -189,6 +193,10 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 	}
 
 	// Gather data for email & web templates.
+	teams, err := s.store.GetTeams(vars.TourID)
+	if err != nil {
+		s.log.Printf("GetTeams: %v", err)
+	}
 	data = &ConfirmationData{
 		TourDetail:            tourDetail,
 		NumRiders:             vars.NumRiders,
@@ -204,43 +212,93 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 		GoogleConversionLabel: s.googleConversionLabel,
 		CDATABegin:            template.JS("/* <![CDATA[ */"),
 		CDATAEnd:              template.JS("/* ]]> */"),
+		NewTotalRiders:        tourDetail.TotalRiders + vars.NumRiders,
+		Teams:                 teams,
 	}
 
-	// Email the customer.
-	if s.emailTemplatesDir == "" {
-		warnings = append(warnings, "noemailtemplate")
-		return data, warnings, nil
-	}
-	tmpl, err := template.ParseFiles(path.Join(s.emailTemplatesDir, "confirmation.txt"))
-	if err != nil {
-		s.log.Printf("ParseFiles for email template: %v", err)
-		warnings = append(warnings, "parseemailtemplate")
-		return data, warnings, nil
-	}
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		s.log.Printf("Execute email template: %v", err)
-		warnings = append(warnings, "executeemailtemplate")
-		return data, warnings, nil
-	}
-	if !knownConfCodes[tourDetail.ConfCode] {
-		warnings = append(warnings, fmt.Sprintf("unknownconfcode:%s", tourDetail.ConfCode))
-	}
-	emailCustomer := tourDetail.AutoConfirm && len(warnings) == 0
-	subject := fmt.Sprintf("%s Tour %s Bike Tour Confirmation", tourDetail.Time.Format("January 2"), tourDetail.Code)
-	if err := s.sendEmail(emailCustomer, name, email, subject, buf.String()); err != nil {
-		s.log.Printf("sendemail: %v", err)
-		warnings = append(warnings, "sendemail")
-		return data, warnings, nil
-	}
-	if emailCustomer {
-		// Update order in database to record confirmation email.
-		if err := s.store.UpdateOrderConfirmationSent(orderID); err != nil {
-			s.log.Printf("UpdateOrderConfirmationSent: %v", err)
-			warnings = append(warnings, "updateorder:confirmationsent")
+	if s.emailTemplatesDir != "" {
+		confSent := false
+		// Email the customer.
+		if tourDetail.AutoConfirm && len(warnings) == 0 {
+			if err := s.emailCustomer(data); err != nil {
+				s.log.Printf("Error emailing customer: %v", err)
+				warnings = append(warnings, "email:customer")
+			} else {
+				confSent = true
+				// Update order in database to record confirmation email.
+				if err := s.store.UpdateOrderConfirmationSent(orderID); err != nil {
+					s.log.Printf("UpdateOrderConfirmationSent: %v", err)
+					warnings = append(warnings, "updateorder:confirmationsent")
+				}
+			}
+		}
+		// Email BTBA.
+		if err := s.emailBTBA(data, confSent); err != nil {
+			s.log.Printf("Error emailing BTBA: %v", err)
+			warnings = append(warnings, "email:btba")
 		}
 	}
+
 	return data, warnings, nil
+}
+
+func (s *Server) emailCustomer(data *ConfirmationData) error {
+	if !knownConfCodes[data.TourDetail.ConfCode] {
+		return fmt.Errorf("unknown conf code: %s", data.TourDetail.ConfCode)
+	}
+	tmpl, err := template.ParseFiles(path.Join(s.emailTemplatesDir, "customer.txt"))
+	if err != nil {
+		return fmt.Errorf("parse customer email template: %v", err)
+	}
+	var body bytes.Buffer
+	if err := tmpl.Execute(&body, data); err != nil {
+		return fmt.Errorf("execute customer email template: %v", err)
+	}
+	from := mail.NewEmail("Bike the Big Apple reservations", "reservations@bikethebigapple.com")
+	to := mail.NewEmail(data.Name, data.Email)
+	bcc := mail.NewEmail("Bike the Big Apple reservations", "reservations@bikethebigapple.com")
+	subject := fmt.Sprintf("%s Tour %s Bike Tour Confirmation", data.TourDetail.Time.Format("January 2"), data.TourDetail.Code)
+	if err := s.sendEmail(from, to, bcc, subject, body.String()); err != nil {
+		return fmt.Errorf("send customer email: %v", err)
+	}
+	return nil
+}
+
+func (s *Server) emailBTBA(data *ConfirmationData, confSent bool) error {
+	tmpl, err := template.ParseFiles(path.Join(s.emailTemplatesDir, "btba.txt"))
+	if err != nil {
+		return fmt.Errorf("parse BTBA email template: %v", err)
+	}
+	var body bytes.Buffer
+	if err := tmpl.Execute(&body, data); err != nil {
+		return fmt.Errorf("execute BTBA email template: %v", err)
+	}
+	from := mail.NewEmail("Bike the Big Apple reservations", "reservations@bikethebigapple.com")
+	to := mail.NewEmail("Bike the Big Apple reservations", "reservations@bikethebigapple.com")
+	subject := fmt.Sprintf("%s-%s | %dpax -> %dpax", data.TourDetail.Time.Format("Jan2"), data.TourDetail.Code, data.NumRiders, data.NewTotalRiders)
+	if len(data.Misc) > 0 {
+		subject += " | MSG"
+	}
+	if !confSent {
+		subject += " | NO CONF SENT"
+	}
+	if err := s.sendEmail(from, to, nil /*bcc*/, subject, body.String()); err != nil {
+		return fmt.Errorf("send BTBA email: %v", err)
+	}
+	return nil
+}
+
+func (s *Server) sendEmail(from, to, bcc *mail.Email, subject, body string) error {
+	content := mail.NewContent("text/plain", body)
+	m := mail.NewV3MailInit(from, subject, to, content)
+	if bcc != nil {
+		m.Personalizations[0].AddBCCs(bcc)
+	}
+	request := sendgrid.GetRequest(s.sendgridKey, "/v3/mail/send", "https://api.sendgrid.com")
+	request.Method = "POST"
+	request.Body = mail.GetRequestBody(m)
+	_, err := sendgrid.API(request)
+	return err
 }
 
 func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) (code int, warnings []string, summary string) {
@@ -265,27 +323,4 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) (cod
 		return http.StatusOK, append(warnings, "executetemplate"), summary
 	}
 	return http.StatusOK, warnings, summary
-}
-
-func (s *Server) sendEmail(emailCustomer bool, name, email, subject, body string) error {
-	var m *mail.SGMailV3
-	if emailCustomer {
-		from := mail.NewEmail("Bike the Big Apple reservations", "reservations@bikethebigapple.com")
-		to := mail.NewEmail(name, email)
-		bcc := mail.NewEmail("", "reservations@bikethebigapple.com")
-		content := mail.NewContent("text/plain", body)
-		m = mail.NewV3MailInit(from, subject, to, content)
-		m.Personalizations[0].AddBCCs(bcc)
-	} else {
-		from := mail.NewEmail("Bike the Big Apple reservations", "reservations@bikethebigapple.com")
-		to := mail.NewEmail("Bike the Big Apple reservations", "reservations@bikethebigapple.com")
-		subject = "NO CONF SENT | " + subject
-		content := mail.NewContent("text/plain", body)
-		m = mail.NewV3MailInit(from, subject, to, content)
-	}
-	request := sendgrid.GetRequest(s.sendgridKey, "/v3/mail/send", "https://api.sendgrid.com")
-	request.Method = "POST"
-	request.Body = mail.GetRequestBody(m)
-	_, err := sendgrid.API(request)
-	return err
 }

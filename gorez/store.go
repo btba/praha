@@ -25,6 +25,7 @@ type TourDetail struct {
 	Tour
 	LongName          string
 	Price             float64
+	TotalRiders       int
 	NumSpotsRemaining int
 }
 
@@ -33,8 +34,14 @@ type Rider struct {
 	Height int
 }
 
+type Team struct {
+	Guide string
+	Sweep string
+}
+
 type Store interface {
 	GetTourDetailByID(tourID int32, maxRiders int) (*TourDetail, bool, error)
+	GetTeams(tourID int32) ([]*Team, error)
 	CreateOrder(tourID int32, numRiders int, riders []Rider, total uint64, name, email, mobile, hotel, misc string) (int32, error)
 	UpdateOrderPaymentRecorded(orderID int32) error
 	UpdateOrderConfirmationSent(orderID int32) error
@@ -58,7 +65,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 		deleted       sql.NullBool
 		longName      sql.NullString
 		price         sql.NullFloat64
-		numRiders     sql.NullInt64 // SUM() can return NULL
+		totalRiders   sql.NullInt64 // SUM() can return NULL
 	)
 	row := s.db.QueryRow(""+
 		"SELECT Master.TourID, "+
@@ -83,7 +90,7 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 		") AS Riders ON Master.TourID = Riders.TourID "+
 		"WHERE Master.TourID = ?",
 		tourID)
-	err := row.Scan(&id, &code, &time, &confCode, &autoConfirm, &full, &cancelled, &riderLimit, &heightsNeeded, &deleted, &longName, &price, &numRiders)
+	err := row.Scan(&id, &code, &time, &confCode, &autoConfirm, &full, &cancelled, &riderLimit, &heightsNeeded, &deleted, &longName, &price, &totalRiders)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, false, nil
@@ -102,15 +109,46 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 			HeightsNeeded: heightsNeeded.Bool,
 			Deleted:       deleted.Bool,
 		},
-		LongName: longName.String,
-		Price:    price.Float64,
+		LongName:    longName.String,
+		Price:       price.Float64,
+		TotalRiders: int(totalRiders.Int64),
 	}
 	if !riderLimit.Valid || riderLimit.Int64 == 0 {
 		tourDetail.NumSpotsRemaining = maxRiders
 	} else {
-		tourDetail.NumSpotsRemaining = int(riderLimit.Int64) - int(numRiders.Int64)
+		tourDetail.NumSpotsRemaining = int(riderLimit.Int64) - int(totalRiders.Int64)
 	}
 	return tourDetail, true, nil
+}
+
+func (s *RemoteStore) GetTeams(tourID int32) ([]*Team, error) {
+	rows, err := s.db.Query(""+
+		"SELECT GuideName, SweepName "+
+		"FROM Guides "+
+		"WHERE TourID = ? "+
+		"  AND (Deleted <> 1 OR Deleted IS NULL) "+
+		"  AND Version = ("+
+		"    SELECT Max(Version) "+
+		"    FROM Guides "+
+		"    WHERE TourID = ?) "+
+		"ORDER BY RecordNum ASC",
+		tourID, tourID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var teams []*Team
+	for rows.Next() {
+		var guide, sweep sql.NullString
+		if err := rows.Scan(&guide, &sweep); err != nil {
+			return nil, err
+		}
+		teams = append(teams, &Team{guide.String, sweep.String})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return teams, nil
 }
 
 func priceString(total uint64) string {
