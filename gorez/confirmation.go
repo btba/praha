@@ -180,6 +180,9 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 		Source:   &stripe.SourceParams{Token: vars.StripeToken},
 	})
 	if err != nil {
+		if stripeErr, ok := err.(*stripe.Error); ok && stripeErr.Code == stripe.CardDeclined {
+			return nil, warnings, &appError{http.StatusPaymentRequired, stripeErr.Msg, stripeErr}
+		}
 		return nil, warnings, &appError{http.StatusInternalServerError, "Server error", fmt.Errorf("charge.New: %v", err)}
 	}
 
