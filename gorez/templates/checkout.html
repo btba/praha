@@ -121,36 +121,36 @@
       <form class="form-horizontal" action="/checkout/confirmation" method="POST" id="payment-form">
         <input type="hidden" name="TourID" value="{{.TourDetail.ID}}">
         <input type="hidden" name="QuotedTotal" id="quotedTotal">
-	{{if .Warn}}
+        {{if .Warn}}
         <div class="row">
-          <div class="col-sm-6 col-sm-offset-2">
+          <div class="col-sm-6 col-sm-offset-3">
             <div class="alert alert-warning" role="alert">
               <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
               WARNING: This tour may no longer be available.
             </div>
           </div>
         </div>
-	{{end}}
+        {{end}}
         <div class="form-group">
-          <label class="col-sm-2 control-label">Tour</label>
+          <label class="col-sm-3 control-label">Tour</label>
           <div class="col-sm-6">
             <p class="form-control-static">{{.TourDetail.Code}} &ndash; {{.TourDetail.LongName}}</p>
           </div>
         </div>
         <div class="form-group">
-          <label class="col-sm-2 control-label">Date &amp; time</label>
+          <label class="col-sm-3 control-label">Date &amp; time</label>
           <div class="col-sm-6">
             <p class="form-control-static">{{.TourDetail.Time.Format "Monday, 2 January 2006 at 3:04 pm"}}</p>
           </div>
         </div>
         <div class="form-group">
-          <label class="col-sm-2 control-label">Price</label>
+          <label class="col-sm-3 control-label">Price</label>
           <div class="col-sm-6">
             <p class="form-control-static">{{printf "$%.2f" .TourDetail.Price}}</p>
           </div>
         </div>
         <div class="form-group">
-          <label for="inputNumRiders" class="col-sm-2 control-label">Number of riders</label>
+          <label for="inputNumRiders" class="col-sm-3 control-label">Number of riders</label>
           <div class="col-sm-6">
             <select id="inputNumRiders" class="form-control" name="NumRiders" onchange="numRidersChanged({{.TourDetail.Price}});">
               {{range .NumRidersOptions}}
@@ -163,16 +163,9 @@
         <div id="riders">
           {{range .NumRidersOptions}}
           <div class="form-group" style="display: none;">
-            <label for="inputRiderGender{{.Index}}" class="col-sm-2 control-label">Rider #{{.Display}} gender</label>
-            <div class="col-sm-2">
-              <select id="inputRiderGender{{.Index}}" class="form-control" name="Riders.{{.Index}}.Gender">
-                <option value="">-- select gender --</option>
-                <option value="F">female</option>
-                <option value="M">male</option>
-                <option value="X">prefer not to say</option>
-              </select>
-            </div>
-            <label for="inputRiderHeight{{.Index}}" class="col-sm-2 control-label">Rider #{{.Display}} height</label>
+            <label for="inputRiderHeight{{.Index}}" class="col-sm-3 control-label">
+              Rider #{{.Display}} height <span class="glyphicon glyphicon-question-sign" aria-hidden="true" data-toggle="modal" data-target="#heightModal">
+            </label>
             <div class="col-sm-2">
               <select id="inputRiderHeight{{.Index}}" class="form-control" name="Riders.{{.Index}}.Height">
                 <option value="">-- select height --</option>
@@ -204,31 +197,40 @@
                 <option value="100">more than 6&prime;06&Prime; (more than 198 cm)</option>
               </select>
             </div>
+            <label for="inputRiderGender{{.Index}}" class="col-sm-2 control-label">Rider #{{.Display}} gender</label>
+            <div class="col-sm-2">
+              <select id="inputRiderGender{{.Index}}" class="form-control" name="Riders.{{.Index}}.Gender">
+                <option value="">-- select gender --</option>
+                <option value="F">female</option>
+                <option value="M">male</option>
+                <option value="X">prefer not to say</option>
+              </select>
+            </div>
           </div>
           {{end}}
         </div>
         {{end}}
         <div class="form-group">
-          <label class="col-sm-2 control-label">Total</label>
+          <label class="col-sm-3 control-label">Total</label>
           <div class="col-sm-6">
             <p class="form-control-static" id="total"></p>
           </div>
         </div>
         <hr>
         <div class="form-group">
-          <label for="inputName" class="col-sm-2 control-label">Name</label>
+          <label for="inputName" class="col-sm-3 control-label">Name</label>
           <div class="col-sm-6">
             <input id="inputName" type="text" class="form-control" name="Name" required maxlength="50">
           </div>
         </div>
         <div class="form-group">
-          <label for="inputNumber" class="col-sm-2 control-label">Card number</label>
+          <label for="inputNumber" class="col-sm-3 control-label">Card number</label>
           <div class="col-sm-6">
             <input id="inputNumber" type="number" class="form-control" data-stripe="number" required>
           </div>
         </div>
         <div class="form-group">
-          <label for="inputCVC" class="col-sm-2 control-label">
+          <label for="inputCVC" class="col-sm-3 control-label">
             CVC <span class="glyphicon glyphicon-question-sign" aria-hidden="true" data-toggle="modal" data-target="#cvcModal"></span>
           </label>
           <div class="col-sm-6">
@@ -236,7 +238,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label for="inputExpMonth" class="col-sm-2 control-label">Expiration month</label>
+          <label for="inputExpMonth" class="col-sm-3 control-label">Expiration month</label>
           <div class="col-sm-2">
             <select id="inputExpMonth" class="form-control" data-stripe="exp-month" required>
               <option value="">-- select month --</option>
@@ -266,43 +268,64 @@
         </div>
         <hr>
         <div class="form-group">
-          <label for="inputEmail" class="col-sm-2 control-label">Email</label>
+          <label for="inputEmail" class="col-sm-3 control-label">
+            Email <span class="glyphicon glyphicon-question-sign" aria-hidden="true" data-toggle="modal" data-target="#emailModal">
+          </label>
           <div class="col-sm-6">
             <input id="inputEmail" type="email" class="form-control" name="Email" required maxlength="80">
           </div>
         </div>
         <div class="form-group">
-          <label for="inputMobile" class="col-sm-2 control-label">Mobile phone</label>
+          <label for="inputMobile" class="col-sm-3 control-label">
+            Mobile phone <span class="glyphicon glyphicon-question-sign" aria-hidden="true" data-toggle="modal" data-target="#mobileModal">
+          </label>
           <div class="col-sm-6">
             <input id="inputMobile" type="tel" class="form-control" name="Mobile" maxlength="35">
           </div>
         </div>
         <div class="form-group">
-          <label for="inputHotel" class="col-sm-2 control-label">Hotel</label>
+          <label for="inputHotel" class="col-sm-3 control-label">
+            Local phone (e.g. hotel) <span class="glyphicon glyphicon-question-sign" aria-hidden="true" data-toggle="modal" data-target="#hotelModal">
+          </label>
           <div class="col-sm-6">
             <input id="inputHotel" type="text" class="form-control" name="Hotel" maxlength="64">
           </div>
         </div>
         <div class="form-group">
-          <label for="inputMisc" class="col-sm-2 control-label">Anything special you'd like us to know?</label>
+          <label for="inputMisc" class="col-sm-3 control-label">Anything special you'd like us to know?</label>
           <div class="col-sm-6">
             <textarea id="inputMisc" class="form-control" rows="3" name="Misc" maxlength="65536"></textarea>
           </div>
         </div>
         <div class="row payment-errors-row" style="display: none;">
-          <div class="col-sm-6 col-sm-offset-2">
+          <div class="col-sm-6 col-sm-offset-3">
             <div class="alert alert-danger" role="alert">
               <span class="payment-errors"></span>
             </div>
           </div>
         </div>
         <div class="row">
-          <div class="col-sm-6 col-sm-offset-2">
+          <div class="col-sm-6 col-sm-offset-3">
             <button type="submit" class="btn btn-primary btn-lg">COMPLETE PURCHASE</button>
           </div>
         </div>
       </form>
     <br><br><br><br>
+    </div>
+    <div class="modal fade" id="heightModal" tabindex="-1" role="dialog" aria-labelledby="heightModalLabel">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h3 class="modal-title" id="heightModalLabel">Heights</h3>
+          </div>
+          <div class="modal-body">
+            If you don't know everyone's heights you can put
+            &ldquo;unknown&rdquo; but please email us before the tour
+            to let us know the missing heights.
+          </div>
+        </div>
+      </div>
     </div>
     <div class="modal fade" id="cvcModal" tabindex="-1" role="dialog" aria-labelledby="cvcModalLabel">
       <div class="modal-dialog" role="document">
@@ -317,6 +340,49 @@
             For <strong>American Express</strong> cards, however, the CVC is a 4 digit number found around the upper-right-hand part of the <strong>front</strong> of the card.<br>
             <img src="https://www.bikethebigapple.com/images/rez_images/CVC-Amex.jpg"><br><br>
             Note, that in either case, the CVC number is <strong>neither</strong> the last several digits of your card number, <strong>nor</strong> your PIN number.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal fade" id="emailModal" tabindex="-1" role="dialog" aria-labelledby="emailModalLabel">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">     
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h3 class="modal-title" id="emailModalLabel">Email</h3>
+          </div>
+          <div class="modal-body">
+            Please make sure you give us a working email address.
+            Your confirmation form (that includes important
+            information) will be sent here.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal fade" id="mobileModal" tabindex="-1" role="dialog" aria-labelledby="mobileModalLabel">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">     
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h3 class="modal-title" id="mobileModalLabel">Mobile phone</h3>
+          </div>
+          <div class="modal-body">
+            We need a way of contacting you near the time of your tour
+            so that we can contact you for weather-related (or any
+            other) issues affecting your tour.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal fade" id="hotelModal" tabindex="-1" role="dialog" aria-labelledby="hotelModalLabel">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">     
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h3 class="modal-title" id="hotelModalLabel">Local phone (e.g. hotel)</h3>
+          </div>
+          <div class="modal-body">
+            If you are visiting please give us your hotel name/phone number.
           </div>
         </div>
       </div>
