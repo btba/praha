@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	texttemplate "text/template"
+
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 	"github.com/stripe/stripe-go"
@@ -249,7 +251,7 @@ func (s *Server) emailCustomer(data *ConfirmationData) error {
 	if !knownConfCodes[data.TourDetail.ConfCode] {
 		return fmt.Errorf("unknown conf code: %s", data.TourDetail.ConfCode)
 	}
-	tmpl, err := template.ParseFiles(path.Join(s.emailTemplatesDir, "customer.txt"))
+	tmpl, err := texttemplate.ParseFiles(path.Join(s.emailTemplatesDir, "customer.txt"))
 	if err != nil {
 		return fmt.Errorf("parse customer email template: %v", err)
 	}
@@ -268,7 +270,7 @@ func (s *Server) emailCustomer(data *ConfirmationData) error {
 }
 
 func (s *Server) emailBTBA(data *ConfirmationData, confSent bool) error {
-	tmpl, err := template.ParseFiles(path.Join(s.emailTemplatesDir, "btba.txt"))
+	tmpl, err := texttemplate.ParseFiles(path.Join(s.emailTemplatesDir, "btba.txt"))
 	if err != nil {
 		return fmt.Errorf("parse BTBA email template: %v", err)
 	}
