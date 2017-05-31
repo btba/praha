@@ -313,7 +313,7 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) (cod
 		http.Error(w, e.Message, e.Code)
 		return e.Code, warnings, e.Message
 	}
-	summary = fmt.Sprintf("tour:%d riders:%d %s '%s' <%s>", data.TourDetail.ID, data.NumRiders, data.DisplayTotal, data.Name, data.Email)
+	summary = fmt.Sprintf("tour:%d riders:%d %s %q <%s>", data.TourDetail.ID, data.NumRiders, data.DisplayTotal, data.Name, data.Email)
 	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "confirmation.html"))
 	if err != nil {
 		s.log.Printf("%v", err)
