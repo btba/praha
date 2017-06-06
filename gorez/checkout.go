@@ -28,11 +28,12 @@ type CheckoutData struct {
 	NumRidersOptions     []*NumRidersOption
 	ExpiryYearOptions    []int
 	StripePublishableKey template.JSStr
-	Warn                 bool
+	Warnings             map[warning]bool
 	GoogleTrackingID     string
 }
 
-func (s *Server) checkout(r *http.Request) (data *CheckoutData, warnings []string, appErr *appError) {
+func (s *Server) checkout(r *http.Request) (*CheckoutData, map[warning]bool, *appError) {
+	warnings := make(map[warning]bool)
 	if err := r.ParseForm(); err != nil {
 		return nil, warnings, &appError{http.StatusBadRequest, "Error parsing form", err}
 	}
@@ -44,7 +45,6 @@ func (s *Server) checkout(r *http.Request) (data *CheckoutData, warnings []strin
 	tourDetail, ok, err := s.store.GetTourDetailByID(vars.TourID, maxRiders)
 	if err != nil {
 		return nil, warnings, &appError{http.StatusInternalServerError, "Server error", fmt.Errorf("GetTourDetailByID: %v", err)}
-		return
 	}
 	if !ok {
 		return nil, warnings, &appError{http.StatusBadRequest, fmt.Sprintf("Invalid tour ID %d", vars.TourID), nil}
@@ -54,16 +54,16 @@ func (s *Server) checkout(r *http.Request) (data *CheckoutData, warnings []strin
 	}
 
 	if tourDetail.Time.Before(time.Now()) {
-		warnings = append(warnings, tourDetail.Time.Format("past:2006/01/02"))
+		warnings[WarningTourPast] = true
 	}
 	if tourDetail.Full {
-		warnings = append(warnings, "full")
+		warnings[WarningTourFull] = true
 	}
 	if tourDetail.Cancelled {
-		warnings = append(warnings, "cancelled")
+		warnings[WarningTourCancelled] = true
 	}
 	if tourDetail.Deleted {
-		warnings = append(warnings, "deleted")
+		warnings[WarningTourDeleted] = true
 	}
 
 	// There's no for-loop in templates, so we construct a list like
@@ -79,18 +79,18 @@ func (s *Server) checkout(r *http.Request) (data *CheckoutData, warnings []strin
 	for y := thisYear; y < thisYear+futureYears; y++ {
 		expiryYearOptions = append(expiryYearOptions, y)
 	}
-	data = &CheckoutData{
+	data := &CheckoutData{
 		TourDetail:           tourDetail,
 		NumRidersOptions:     numRidersOptions,
 		ExpiryYearOptions:    expiryYearOptions,
 		StripePublishableKey: template.JSStr(s.stripePublishableKey),
-		Warn:                 len(warnings) > 0,
+		Warnings:             warnings,
 		GoogleTrackingID:     s.googleTrackingID,
 	}
 	return data, warnings, nil
 }
 
-func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) (code int, warnings []string, summary string) {
+func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) (code int, warnings map[warning]bool, summary string) {
 	data, warnings, e := s.checkout(r)
 	if e != nil {
 		if e.Error != nil {

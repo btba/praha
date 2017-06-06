@@ -52,7 +52,9 @@ type ConfirmationData struct {
 	Hotel  string
 	Misc   string
 
-	Warn                  bool
+	Warnings     map[warning]bool
+	EmailSkipped string // empty if customer email sent
+
 	GoogleTrackingID      string
 	GoogleConversionID    template.JS
 	GoogleConversionLabel string
@@ -77,7 +79,12 @@ var knownConfCodes = map[string]bool{
 	"LIC-Carlos": true,
 }
 
-func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []string, appErr *appError) {
+func skipEmail(w map[warning]bool) bool {
+	return w[WarningTourPast] || w[WarningTourFull] || w[WarningTourCancelled] || w[WarningTourDeleted] || w[WarningTourOversubscribed] || w[WarningInvalidHeights] || w[WarningNoName] || w[WarningNoEmail]
+}
+
+func (s *Server) confirm(r *http.Request) (*ConfirmationData, map[warning]bool, *appError) {
+	warnings := make(map[warning]bool)
 	if r.Method != "POST" {
 		return nil, warnings, &appError{http.StatusMethodNotAllowed, "Method must be POST", nil}
 	}
@@ -105,22 +112,22 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 		return nil, warnings, &appError{http.StatusBadRequest, fmt.Sprintf("Invalid tour ID %d", vars.TourID), nil}
 	}
 	if tourDetail.Time.Before(time.Now()) {
-		warnings = append(warnings, tourDetail.Time.Format("past:2006/01/02"))
+		warnings[WarningTourPast] = true
 	}
 	if tourDetail.Full {
-		warnings = append(warnings, "full")
+		warnings[WarningTourFull] = true
 	}
 	if tourDetail.Cancelled {
-		warnings = append(warnings, "cancelled")
+		warnings[WarningTourCancelled] = true
 	}
 	if tourDetail.Deleted {
-		warnings = append(warnings, "deleted")
+		warnings[WarningTourDeleted] = true
 	}
 	switch {
 	case vars.NumRiders < 1:
 		return nil, warnings, &appError{http.StatusBadRequest, "NumRiders must be at least 1", nil}
 	case vars.NumRiders > tourDetail.NumSpotsRemaining:
-		warnings = append(warnings, fmt.Sprintf("riders(%d)>spots(%d)", vars.NumRiders, tourDetail.NumSpotsRemaining))
+		warnings[WarningTourOversubscribed] = true
 	}
 	// Compute totals in cents [float64(13.57) -> uint64(1357)] and validate.
 	actualTotal := uint64(float64(vars.NumRiders)*tourDetail.Price*100 + 0.5)
@@ -132,24 +139,23 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 	// Validate genders & heights.
 	var riders []Rider
 	if tourDetail.HeightsNeeded {
-		warn := false
 		if len(vars.Riders) < vars.NumRiders {
-			warn = true
+			warnings[WarningInvalidHeights] = true
 		} else {
 			vars.Riders = vars.Riders[:vars.NumRiders]
 		}
 		for _, r := range vars.Riders {
 			if r.Gender != "F" && r.Gender != "M" && r.Gender != "X" {
 				r.Gender = "?"
-				warn = true
+				warnings[WarningInvalidHeights] = true
 			}
-			if r.Height <= 0 {
-				warn = true
+			switch {
+			case r.Height < 0:
+				warnings[WarningUnknownHeights] = true
+			case r.Height == 0:
+				warnings[WarningInvalidHeights] = true
 			}
 			riders = append(riders, Rider{r.Gender, r.Height})
-		}
-		if warn {
-			warnings = append(warnings, "badheights")
 		}
 	}
 
@@ -162,10 +168,10 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 		misc   = strings.TrimSpace(vars.Misc)
 	)
 	if name == "" {
-		warnings = append(warnings, "noname")
+		warnings[WarningNoName] = true
 	}
 	if email == "" {
-		warnings = append(warnings, "noemail")
+		warnings[WarningNoEmail] = true
 	}
 
 	// Add order to database.
@@ -194,15 +200,11 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 	// Update order in database to record payment.
 	if err := s.store.UpdateOrderPaymentRecorded(orderID); err != nil {
 		s.log.Printf("UpdateOrderPaymentRecorded: %v", err)
-		warnings = append(warnings, "updateorder:paymentrecorded")
+		warnings[WarningPaymentRecorded] = true
 	}
 
 	// Gather data for email & web templates.
-	teams, err := s.store.GetTeams(vars.TourID)
-	if err != nil {
-		s.log.Printf("GetTeams: %v", err)
-	}
-	data = &ConfirmationData{
+	data := &ConfirmationData{
 		TourDetail:            tourDetail,
 		NumRiders:             vars.NumRiders,
 		DisplayTotal:          fmt.Sprintf("$%d.%02d", actualTotal/100, actualTotal%100),
@@ -211,37 +213,40 @@ func (s *Server) confirm(r *http.Request) (data *ConfirmationData, warnings []st
 		Mobile:                mobile,
 		Hotel:                 hotel,
 		Misc:                  misc,
-		Warn:                  len(warnings) > 0,
+		Warnings:              warnings,
 		GoogleTrackingID:      s.googleTrackingID,
 		GoogleConversionID:    template.JS(strconv.Itoa(s.googleConversionID)),
 		GoogleConversionLabel: s.googleConversionLabel,
 		CDATABegin:            template.JS("/* <![CDATA[ */"),
 		CDATAEnd:              template.JS("/* ]]> */"),
 		NewTotalRiders:        tourDetail.TotalRiders + vars.NumRiders,
-		Teams:                 teams,
 	}
 
-	if s.emailTemplatesDir != "" {
-		confSent := false
-		// Email the customer.
-		if tourDetail.AutoConfirm && len(warnings) == 0 {
-			if err := s.emailCustomer(data); err != nil {
-				s.log.Printf("Error emailing customer: %v", err)
-				warnings = append(warnings, "email:customer")
-			} else {
-				confSent = true
-				// Update order in database to record confirmation email.
-				if err := s.store.UpdateOrderConfirmationSent(orderID); err != nil {
-					s.log.Printf("UpdateOrderConfirmationSent: %v", err)
-					warnings = append(warnings, "updateorder:confirmationsent")
-				}
-			}
+	// Email the customer.
+	if !tourDetail.AutoConfirm {
+		data.EmailSkipped = "no auto confirm"
+	} else if skipEmail(warnings) {
+		data.EmailSkipped = fmt.Sprintf("warnings: %v", warningsList(warnings))
+	} else if err := s.emailCustomer(data); err != nil {
+		data.EmailSkipped = fmt.Sprintf("email send failure: %v", err)
+		s.log.Printf("Error emailing customer: %v", err)
+		warnings[WarningEmailCustomer] = true
+	} else {
+		// Update order in database to record confirmation email.
+		if err := s.store.UpdateOrderConfirmationSent(orderID); err != nil {
+			s.log.Printf("UpdateOrderConfirmationSent: %v", err)
+			warnings[WarningConfirmationSent] = true
 		}
-		// Email BTBA.
-		if err := s.emailBTBA(data, confSent); err != nil {
-			s.log.Printf("Error emailing BTBA: %v", err)
-			warnings = append(warnings, "email:btba")
-		}
+	}
+	// Email BTBA.
+	data.Teams, err = s.store.GetTeams(vars.TourID)
+	if err != nil {
+		s.log.Printf("GetTeams: %v", err)
+		warnings[WarningGetTeams] = true
+	}
+	if err := s.emailBTBA(data); err != nil {
+		s.log.Printf("Error emailing BTBA: %v", err)
+		warnings[WarningEmailBTBA] = true
 	}
 
 	return data, warnings, nil
@@ -269,7 +274,7 @@ func (s *Server) emailCustomer(data *ConfirmationData) error {
 	return nil
 }
 
-func (s *Server) emailBTBA(data *ConfirmationData, confSent bool) error {
+func (s *Server) emailBTBA(data *ConfirmationData) error {
 	tmpl, err := texttemplate.ParseFiles(path.Join(s.emailTemplatesDir, "btba.txt"))
 	if err != nil {
 		return fmt.Errorf("parse BTBA email template: %v", err)
@@ -284,8 +289,11 @@ func (s *Server) emailBTBA(data *ConfirmationData, confSent bool) error {
 	if len(data.Misc) > 0 {
 		subject += " | MSG"
 	}
-	if !confSent {
+	if data.EmailSkipped != "" {
 		subject += " | NO CONF SENT"
+	}
+	if data.Warnings[WarningUnknownHeights] {
+		subject += " | NOHEIGHTS"
 	}
 	if err := s.sendEmail(from, to, nil /*bcc*/, subject, body.String()); err != nil {
 		return fmt.Errorf("send BTBA email: %v", err)
@@ -306,7 +314,7 @@ func (s *Server) sendEmail(from, to, bcc *mail.Email, subject, body string) erro
 	return err
 }
 
-func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) (code int, warnings []string, summary string) {
+func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) (code int, warnings map[warning]bool, summary string) {
 	data, warnings, e := s.confirm(r)
 	if e != nil {
 		if e.Error != nil {
@@ -320,12 +328,12 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) (cod
 	if err != nil {
 		s.log.Printf("%v", err)
 		fmt.Fprint(w, "Reservation accepted") // fallback message
-		return http.StatusOK, append(warnings, "parsetemplate"), summary
+		return http.StatusOK, warnings, summary
 	}
 	if err := tmpl.Execute(w, data); err != nil {
 		s.log.Printf("%v", err)
 		fmt.Fprint(w, "Reservation accepted") // fallback message
-		return http.StatusOK, append(warnings, "executetemplate"), summary
+		return http.StatusOK, warnings, summary
 	}
 	return http.StatusOK, warnings, summary
 }

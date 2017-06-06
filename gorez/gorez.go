@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/gorilla/schema"
@@ -33,6 +34,34 @@ var (
 const (
 	maxRiders = 14
 )
+
+type warning string
+
+const (
+	WarningTourPast           = warning("input_bad/tour_past")
+	WarningTourFull           = warning("input_bad/tour_full")
+	WarningTourCancelled      = warning("input_bad/tour_cancelled")
+	WarningTourDeleted        = warning("input_bad/tour_deleted")
+	WarningTourOversubscribed = warning("input_bad/tour_oversubscribed") // occasional
+	WarningInvalidHeights     = warning("input_bad/invalid_heights")
+	WarningUnknownHeights     = warning("input_bad/unknown_heights") // common
+	WarningNoName             = warning("input_bad/no_name")
+	WarningNoEmail            = warning("input_bad/no_email")
+	WarningPaymentRecorded    = warning("db_failure/payment_recorded")
+	WarningConfirmationSent   = warning("db_failure/confirmation_sent")
+	WarningGetTeams           = warning("db_failure/get_teams")
+	WarningEmailCustomer      = warning("email_failure/customer")
+	WarningEmailBTBA          = warning("email_failure/btba")
+)
+
+func warningsList(warnings map[warning]bool) []string {
+	var result []string
+	for w, _ := range warnings {
+		result = append(result, string(w))
+	}
+	sort.Strings(result)
+	return result
+}
 
 type Server struct {
 	store                 Store
@@ -81,7 +110,7 @@ type appError struct {
 
 type logHandler struct {
 	log    *log.Logger
-	handle func(http.ResponseWriter, *http.Request) (code int, warnings []string, summary string)
+	handle func(http.ResponseWriter, *http.Request) (code int, warnings map[warning]bool, summary string)
 }
 
 func (h *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +119,7 @@ func (h *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		host = r.RemoteAddr
 	}
-	h.log.Printf("%s %s %s %s code:%d warnings:%v %s\n", host, r.Method, r.URL.Path, r.Form.Encode(), code, warnings, summary)
+	h.log.Printf("%s %s %s %s code:%d warnings:%v %s\n", host, r.Method, r.URL.Path, r.Form.Encode(), code, warningsList(warnings), summary)
 }
 
 func main() {
