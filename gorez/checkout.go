@@ -32,6 +32,11 @@ type CheckoutData struct {
 	GoogleTrackingID     string
 }
 
+type CheckoutErrorData struct {
+	Error            string
+	GoogleTrackingID string
+}
+
 func (s *Server) checkout(r *http.Request) (*CheckoutData, map[warning]bool, *appError) {
 	warnings := make(map[warning]bool)
 	if err := r.ParseForm(); err != nil {
@@ -40,6 +45,9 @@ func (s *Server) checkout(r *http.Request) (*CheckoutData, map[warning]bool, *ap
 	var vars CheckoutVars
 	if err := s.decoder.Decode(&vars, r.Form); err != nil {
 		return nil, warnings, &appError{http.StatusBadRequest, "Error decoding form values", err}
+	}
+	if vars.TourID <= 0 { // also handles missing TourID in vars
+		return nil, warnings, &appError{http.StatusBadRequest, "Please return to the previous page and select a date. Thank you.", nil}
 	}
 
 	tourDetail, ok, err := s.store.GetTourDetailByID(vars.TourID, maxRiders)
@@ -96,7 +104,18 @@ func (s *Server) HandleCheckout(w http.ResponseWriter, r *http.Request) (code in
 		if e.Error != nil {
 			s.log.Printf("%s: %v", e.Message, e.Error)
 		}
-		http.Error(w, e.Message, e.Code)
+		tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "checkout_error.html"))
+		if err != nil {
+			s.log.Printf("%v", err)
+			http.Error(w, "Server error", http.StatusInternalServerError)
+			return http.StatusInternalServerError, warnings, "Error parsing checkout error template"
+		}
+		w.WriteHeader(e.Code)
+		if err := tmpl.Execute(w, &CheckoutErrorData{e.Message, s.googleTrackingID}); err != nil {
+			s.log.Printf("%v", err)
+			http.Error(w, "Server error", http.StatusInternalServerError)
+			return http.StatusInternalServerError, warnings, "Error executing checkout error template"
+		}
 		return e.Code, warnings, e.Message
 	}
 	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "checkout.html"))

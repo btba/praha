@@ -4,11 +4,13 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"html/template"
 	"log"
 	"math/rand"
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"sort"
 	"time"
 
@@ -21,7 +23,6 @@ var (
 	sendgridKey           = flag.String("sendgrid_key", "", "SendGrid API key")
 	stripeSecretKey       = flag.String("stripe_secret_key", "", "Stripe key used by server")
 	stripePublishableKey  = flag.String("stripe_publishable_key", "", "Stripe key to embed in Javascript")
-	staticDir             = flag.String("static_dir", "", "if provided, directory for static files")
 	templatesDir          = flag.String("templates_dir", "templates", "directory containing templates")
 	emailTemplatesDir     = flag.String("email_templates_dir", "", "directory containing email templates")
 	requestLog            = flag.String("request_log", "", "file for request logs (empty means stdout)")
@@ -100,6 +101,28 @@ func NewServer(dsn, sendgridKey, stripeSecretKey, stripePublishableKey, template
 	}, nil
 }
 
+type NotFoundData struct {
+	GoogleTrackingID string
+}
+
+func (s *Server) HandleDefault(w http.ResponseWriter, r *http.Request) (code int, warnings map[warning]bool, summary string) {
+	warnings = make(map[warning]bool)
+	summary = "page not found"
+	tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "notfound.html"))
+	if err != nil {
+		s.log.Printf("%v", err)
+		http.NotFound(w, r)
+		return http.StatusNotFound, warnings, summary
+	}
+	w.WriteHeader(http.StatusNotFound)
+	if err := tmpl.Execute(w, &NotFoundData{s.googleTrackingID}); err != nil {
+		s.log.Printf("%v", err)
+		http.NotFound(w, r)
+		return http.StatusNotFound, warnings, summary
+	}
+	return http.StatusNotFound, warnings, summary
+}
+
 // See also https://blog.golang.org/error-handling-and-go, although
 // this code does something slightly different.
 type appError struct {
@@ -153,9 +176,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	m := http.NewServeMux()
 	m.Handle("/checkout", &logHandler{requestLog, server.HandleCheckout})
-	m.Handle("/checkout/confirmation", &logHandler{requestLog, server.HandleConfirmation})
-	if *staticDir != "" {
-		m.Handle("/", http.FileServer(http.Dir(*staticDir)))
-	}
+	m.Handle("/thankyou", &logHandler{requestLog, server.HandleConfirmation})
+	m.Handle("/", &logHandler{requestLog, server.HandleDefault})
 	http.ListenAndServe(fmt.Sprintf(":%d", *port), m)
 }

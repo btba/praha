@@ -65,6 +65,11 @@ type ConfirmationData struct {
 	Teams          []*Team
 }
 
+type ConfirmationErrorData struct {
+	Error            string
+	GoogleTrackingID string
+}
+
 var knownConfCodes = map[string]bool{
 	"110SouthSt": true,
 	"124th":      true,
@@ -320,7 +325,18 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) (cod
 		if e.Error != nil {
 			s.log.Printf("%s: %v", e.Message, e.Error)
 		}
-		http.Error(w, e.Message, e.Code)
+		tmpl, err := template.ParseFiles(path.Join(s.templatesDir, "confirmation_error.html"))
+		if err != nil {
+			s.log.Printf("%v", err)
+			http.Error(w, e.Message, e.Code)
+			return e.Code, warnings, e.Message
+		}
+		w.WriteHeader(e.Code)
+		if err := tmpl.Execute(w, &ConfirmationErrorData{e.Message, s.googleTrackingID}); err != nil {
+			s.log.Printf("%v", err)
+			http.Error(w, e.Message, e.Code)
+			return e.Code, warnings, e.Message
+		}
 		return e.Code, warnings, e.Message
 	}
 	summary = fmt.Sprintf("tour:%d riders:%d %s %q <%s>", data.TourDetail.ID, data.NumRiders, data.DisplayTotal, data.Name, data.Email)

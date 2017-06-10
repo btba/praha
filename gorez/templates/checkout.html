@@ -118,7 +118,7 @@
         <h1>BIKE THE BIG APPLE- CHECKOUT</h1>
       </div>
 
-      <form class="form-horizontal" action="/checkout/confirmation" method="POST" id="payment-form">
+      <form class="form-horizontal" action="/thankyou" method="POST" id="payment-form">
         <input type="hidden" name="TourID" value="{{.TourDetail.ID}}">
         <input type="hidden" name="QuotedTotal" id="quotedTotal">
         {{if .Warnings}}

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Bike the Big Apple - Confirmation</title>
+    <title>Bike the Big Apple - Thank you</title>
     <link rel="shortcut icon" href="https://bikethebigapple.com/images/ui/favicon.png">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
     <style>
@@ -46,25 +46,25 @@
   <body>
     <div class="container">
       <div class="jumbotron">
-        <h1>BIKE THE BIG APPLE- CONFIRMATION</h1>
+        <h1>BIKE THE BIG APPLE- THANK YOU</h1>
       </div>
       {{if .EmailSkipped}}
       <div class="alert alert-info" role="alert">
         Thank you for booking this tour! You should shortly be
-        receiving an email confirmation
-        (at <a href="mailto:explore@bikethebigapple.com">explore@bikethebigapple.com</a>)
-        containing all of the details of your tour.  If you do not
-        receive within about 12 hours, please check your junk mail
-        folder, or get in touch with us.
+        receiving an email confirmation (at {{.Email}}) containing all
+        of the details of your tour.  If you do not receive within
+        about 12 hours, please check your junk mail folder, or get in
+        touch with us
+        at <a href="mailto:explore@bikethebigapple.com">explore@bikethebigapple.com</a>.
       </div>
       {{else}}
       <div class="alert alert-info" role="alert">
         Thank you for booking this tour! You should now be receiving
-        an email confirmation
-        (at <a href="mailto:explore@bikethebigapple.com">explore@bikethebigapple.com</a>)
-        containing all of the details of your tour.  If you do not
-        receive this in a few minutes, please check your junk mail
-        folder, or get in touch with us.
+        an email confirmation (at {{.Email}}) containing all of the
+        details of your tour.  If you do not receive this in a few
+        minutes, please check your junk mail folder, or get in touch
+        with us
+        at <a href="mailto:explore@bikethebigapple.com">explore@bikethebigapple.com</a>.
       </div>
       {{end}}
       <dl class="dl-horizontal">

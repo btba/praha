@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bike the Big Apple - Checkout</title>
+    <link rel="shortcut icon" href="https://bikethebigapple.com/images/ui/favicon.png">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <style>
+      @font-face {
+        font-family: BebasNeueRegular;
+        src: url('https://storage.googleapis.com/btbastatic/BebasNeue-webfont.woff');
+      }
+      @font-face {
+        font-family: SEGOEUI;
+        src: url('https://storage.googleapis.com/btbastatic/SEGOEUI.woff');
+      }
+      body {
+        background-color: #000000;
+        font-family: SEGOEUI;
+        font-size: 17px;
+      }
+      div.container {
+        background-color: #ffffff;
+      }
+      div.jumbotron {
+        background-color: #e00000;
+        color: #ffffff;
+        font-family: BebasNeueRegular;
+        letter-spacing: 2px;
+      }
+      button.btn-primary {
+        background-color: #ffc000;
+        border: none;
+        color: #000000;
+        font-family: BebasNeueRegular;
+        font-size: 22px;
+      }
+    </style>
+    {{if .GoogleTrackingID}}
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+      ga('create', '{{.GoogleTrackingID}}', 'auto');
+      ga('send', 'pageview');
+    </script>
+    {{end}}
+    <script type="text/javascript" src="https://js.stripe.com/v2/"></script>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="jumbotron">
+        <h1>BIKE THE BIG APPLE- CHECKOUT</h1>
+      </div>
+      <div class="alert alert-danger" role="alert">
+        <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+        <span class="sr-only">Error:</span>
+        Oops... {{.Error}}
+      </div>
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+  </body>
+</html>
