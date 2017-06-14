@@ -63,6 +63,7 @@ type ConfirmationData struct {
 
 	NewTotalRiders int
 	Teams          []*Team
+	BTBARef        string // value of BTBARef cookie, may be empty
 }
 
 type ConfirmationErrorData struct {
@@ -209,6 +210,7 @@ func (s *Server) confirm(r *http.Request) (*ConfirmationData, map[warning]bool, 
 	}
 
 	// Gather data for email & web templates.
+	cookie, _ := r.Cookie("BTBARef")
 	data := &ConfirmationData{
 		TourDetail:            tourDetail,
 		NumRiders:             vars.NumRiders,
@@ -225,6 +227,7 @@ func (s *Server) confirm(r *http.Request) (*ConfirmationData, map[warning]bool, 
 		CDATABegin:            template.JS("/* <![CDATA[ */"),
 		CDATAEnd:              template.JS("/* ]]> */"),
 		NewTotalRiders:        tourDetail.TotalRiders + vars.NumRiders,
+		BTBARef:               cookie.Value,
 	}
 
 	// Email the customer.
