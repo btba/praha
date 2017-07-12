@@ -227,7 +227,7 @@ func (s *Server) confirm(r *http.Request) (*ConfirmationData, map[warning]bool, 
 		CDATAEnd:              template.JS("/* ]]> */"),
 		NewTotalRiders:        tourDetail.TotalRiders + vars.NumRiders,
 	}
-	if cookie, err := r.Cookie("BTBARef"); err != nil {
+	if cookie, err := r.Cookie("BTBARef"); err == nil {
 		data.BTBARef = cookie.Value
 	}
 
