@@ -16,6 +16,7 @@ import (
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 	"github.com/stripe/stripe-go"
 	"github.com/stripe/stripe-go/charge"
+	"github.com/stripe/stripe-go/customer"
 )
 
 type RiderVars struct {
@@ -188,12 +189,25 @@ func (s *Server) confirm(r *http.Request) (*ConfirmationData, map[warning]bool, 
 
 	// Charge to Stripe.
 	stripe.Key = s.stripeSecretKey
-	_, err = charge.New(&stripe.ChargeParams{
+	customerParams := &stripe.CustomerParams{
+		Desc:   name,
+		Email:  email,
+		Source: &stripe.SourceParams{Token: vars.StripeToken},
+	}
+	customer, err := customer.New(customerParams)
+	if err != nil {
+		if stripeErr, ok := err.(*stripe.Error); ok && stripeErr.Code == stripe.CardDeclined {
+			return nil, warnings, &appError{http.StatusPaymentRequired, stripeErr.Msg, stripeErr}
+		}
+		return nil, warnings, &appError{http.StatusInternalServerError, "Server error", fmt.Errorf("charge.New: %v", err)}
+	}
+	chargeParams := &stripe.ChargeParams{
 		Amount:   actualTotal,
 		Currency: "USD",
-		Source:   &stripe.SourceParams{Token: vars.StripeToken},
-	})
-	if err != nil {
+		Customer: customer.ID,
+	}
+	chargeParams.AddMeta("OrderNum", strconv.Itoa(int(orderID)))
+	if _, err = charge.New(chargeParams); err != nil {
 		if stripeErr, ok := err.(*stripe.Error); ok && stripeErr.Code == stripe.CardDeclined {
 			return nil, warnings, &appError{http.StatusPaymentRequired, stripeErr.Msg, stripeErr}
 		}
