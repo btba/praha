@@ -210,7 +210,6 @@ func (s *Server) confirm(r *http.Request) (*ConfirmationData, map[warning]bool, 
 	}
 
 	// Gather data for email & web templates.
-	cookie, _ := r.Cookie("BTBARef")
 	data := &ConfirmationData{
 		TourDetail:            tourDetail,
 		NumRiders:             vars.NumRiders,
@@ -227,7 +226,9 @@ func (s *Server) confirm(r *http.Request) (*ConfirmationData, map[warning]bool, 
 		CDATABegin:            template.JS("/* <![CDATA[ */"),
 		CDATAEnd:              template.JS("/* ]]> */"),
 		NewTotalRiders:        tourDetail.TotalRiders + vars.NumRiders,
-		BTBARef:               cookie.Value,
+	}
+	if cookie, err := r.Cookie("BTBARef"); err != nil {
+		data.BTBARef = cookie.Value
 	}
 
 	// Email the customer.
