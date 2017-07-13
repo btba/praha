@@ -85,7 +85,8 @@ func (s *RemoteStore) GetTourDetailByID(tourID int32, maxRiders int) (*TourDetai
 		"LEFT JOIN MasterTourInfo ON Master.TourCode = MasterTourInfo.ShortCode "+
 		"LEFT JOIN ("+
 		"    SELECT TourID, SUM(Riders) AS Count "+
-		"    FROM OrderItems "+
+		"    FROM OrderItems, OrderMain "+
+		"    WHERE OrderItems.OrderNum = OrderMain.OrderNum AND OrderMain.Completed <> 0 "+
 		"    GROUP BY TourID"+
 		") AS Riders ON Master.TourID = Riders.TourID "+
 		"WHERE Master.TourID = ?",
