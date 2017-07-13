@@ -177,8 +177,8 @@ func heightsString(riders []Rider) string {
 
 func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, tourID int32, numRiders int, riders []Rider, total uint64, name, email, mobile, hotel, misc string) (int32, error) {
 	result, err := tx.Exec(
-		"INSERT INTO OrderMain (CustName, CustEmail, Hotel, Mobile, DatePlaced, Message, Heights) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		name, email, hotel, mobile, time.Now(), misc, heightsString(riders))
+		"INSERT INTO OrderMain (CustName, CustEmail, Hotel, Mobile, DatePlaced, Heights) VALUES (?, ?, ?, ?, ?, ?)",
+		name, email, hotel, mobile, time.Now(), heightsString(riders))
 	if err != nil {
 		return 0, err
 	}
@@ -187,8 +187,8 @@ func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, tourID int32, numRiders int
 		return 0, err
 	}
 	_, err = tx.Exec(
-		"INSERT INTO OrderItems (OrderNum, TourID, Riders, Price, Method, Deleted) VALUES (?, ?, ?, ?, ?, ?)",
-		orderID, tourID, numRiders, priceString(total), "STw", 0)
+		"INSERT INTO OrderItems (OrderNum, TourID, Riders, Price, Method, PrivateNotes, Deleted) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		orderID, tourID, numRiders, priceString(total), "STw", misc, 0)
 	if err != nil {
 		return 0, err
 	}
