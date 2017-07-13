@@ -68,6 +68,7 @@ type ConfirmationData struct {
 }
 
 type ConfirmationErrorData struct {
+	Code             int
 	Error            string
 	GoogleTrackingID string
 }
@@ -350,7 +351,7 @@ func (s *Server) HandleConfirmation(w http.ResponseWriter, r *http.Request) (cod
 			return e.Code, warnings, e.Message
 		}
 		w.WriteHeader(e.Code)
-		if err := tmpl.Execute(w, &ConfirmationErrorData{e.Message, s.googleTrackingID}); err != nil {
+		if err := tmpl.Execute(w, &ConfirmationErrorData{e.Code, e.Message, s.googleTrackingID}); err != nil {
 			s.log.Printf("%v", err)
 			http.Error(w, e.Message, e.Code)
 			return e.Code, warnings, e.Message

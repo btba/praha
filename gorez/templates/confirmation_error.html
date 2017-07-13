@@ -49,9 +49,24 @@
         <h1>BIKE THE BIG APPLE- CONFIRMATION</h1>
       </div>
       <div class="alert alert-danger" role="alert">
-        <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
-        <span class="sr-only">Error:</span>
-        Oops... {{.Error}}
+        <p>
+          <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+          <span class="sr-only">Error:</span>
+          Oops... {{.Error}}
+        </p>
+        {{if eq .Code 402}}
+        <p>
+          This typically happens when you misenter the CVC code.  Or
+          your credit card company may think this is a suspicious
+          transaction (to a New York company over the
+          Internet).
+        </p>
+        <p>
+          Please go back and re-enter your information.  If it does
+          not work, you might need to contact your credit card
+          company.
+        </p>
+        {{end}}
       </div>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
