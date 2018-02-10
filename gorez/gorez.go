@@ -83,6 +83,15 @@ func NewServer(dsn, sendgridKey, stripeSecretKey, stripePublishableKey, template
 	if err != nil {
 		return nil, err
 	}
+
+	// Workaround for change to MySQL library behavior where we started
+	// to get error messages of the form "connection.go:372: invalid
+	// connection".  For more context, see:
+	// - https://github.com/go-sql-driver/mysql/issues/657
+	// - https://github.com/go-sql-driver/mysql/issues/726
+	// - https://groups.google.com/d/topic/golang-nuts/NCjGLpKiGWs/discussion
+	db.SetConnMaxLifetime(10 * time.Second)
+
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
