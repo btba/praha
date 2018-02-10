@@ -59,6 +59,7 @@ type ConfirmationData struct {
 	GoogleTrackingID      string
 	GoogleConversionID    template.JS
 	GoogleConversionLabel string
+	GoogleConversionValue template.JS
 	CDATABegin            template.JS
 	CDATAEnd              template.JS
 
@@ -238,6 +239,7 @@ func (s *Server) confirm(r *http.Request) (*ConfirmationData, map[warning]bool, 
 		GoogleTrackingID:      s.googleTrackingID,
 		GoogleConversionID:    template.JS(strconv.Itoa(s.googleConversionID)),
 		GoogleConversionLabel: s.googleConversionLabel,
+		GoogleConversionValue: template.JS(fmt.Sprintf("%d.%02d", actualTotal/100, actualTotal%100)),
 		CDATABegin:            template.JS("/* <![CDATA[ */"),
 		CDATAEnd:              template.JS("/* ]]> */"),
 		NewTotalRiders:        tourDetail.TotalRiders + vars.NumRiders,
