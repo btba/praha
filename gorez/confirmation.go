@@ -86,6 +86,9 @@ var knownConfCodes = map[string]bool{
 	"F-Carlos":   true,
 	"Gen-Carlos": true,
 	"LIC-Carlos": true,
+	"Irving":     true,
+	"D-Irving":   true,
+	"E-Irving":   true,
 }
 
 func skipEmail(w map[warning]bool) bool {
