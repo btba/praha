@@ -143,8 +143,8 @@ func (s *Server) confirm(r *http.Request) (*ConfirmationData, map[warning]bool, 
 		warnings[WarningTourOversubscribed] = true
 	}
 	// Compute totals in cents [float64(13.57) -> uint64(1357)] and validate.
-	actualTotal := uint64(float64(vars.NumRiders)*tourDetail.Price*100 + 0.5)
-	quotedTotal := uint64(vars.QuotedTotal*100 + 0.5)
+	actualTotal := int64(float64(vars.NumRiders)*tourDetail.Price*100 + 0.5)
+	quotedTotal := int64(vars.QuotedTotal*100 + 0.5)
 	if actualTotal != quotedTotal {
 		return nil, warnings, &appError{http.StatusBadRequest, "Pricing error", fmt.Errorf("quoted=%d, actual=%d", quotedTotal, actualTotal)}
 	}
@@ -196,25 +196,25 @@ func (s *Server) confirm(r *http.Request) (*ConfirmationData, map[warning]bool, 
 	// Charge to Stripe.
 	stripe.Key = s.stripeSecretKey
 	customerParams := &stripe.CustomerParams{
-		Desc:   name,
-		Email:  email,
-		Source: &stripe.SourceParams{Token: vars.StripeToken},
+		Description: stripe.String(name),
+		Email:       stripe.String(email),
+		Source:      &stripe.SourceParams{Token: stripe.String(vars.StripeToken)},
 	}
 	customer, err := customer.New(customerParams)
 	if err != nil {
-		if stripeErr, ok := err.(*stripe.Error); ok && stripeErr.Code == stripe.CardDeclined {
+		if stripeErr, ok := err.(*stripe.Error); ok && stripeErr.Code == stripe.ErrorCodeCardDeclined {
 			return nil, warnings, &appError{http.StatusPaymentRequired, stripeErr.Msg, stripeErr}
 		}
 		return nil, warnings, &appError{http.StatusInternalServerError, "Server error", fmt.Errorf("charge.New: %v", err)}
 	}
 	chargeParams := &stripe.ChargeParams{
-		Amount:   actualTotal,
-		Currency: "USD",
-		Customer: customer.ID,
+		Amount:   stripe.Int64(actualTotal),
+		Currency: stripe.String("USD"),
+		Customer: stripe.String(customer.ID),
 	}
-	chargeParams.AddMeta("OrderNum", strconv.Itoa(int(orderID)))
+	chargeParams.AddMetadata("OrderNum", strconv.Itoa(int(orderID)))
 	if _, err = charge.New(chargeParams); err != nil {
-		if stripeErr, ok := err.(*stripe.Error); ok && stripeErr.Code == stripe.CardDeclined {
+		if stripeErr, ok := err.(*stripe.Error); ok && stripeErr.Code == stripe.ErrorCodeCardDeclined {
 			return nil, warnings, &appError{http.StatusPaymentRequired, stripeErr.Msg, stripeErr}
 		}
 		return nil, warnings, &appError{http.StatusInternalServerError, "Server error", fmt.Errorf("charge.New: %v", err)}

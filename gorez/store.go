@@ -42,7 +42,7 @@ type Team struct {
 type Store interface {
 	GetTourDetailByID(tourID int32, maxRiders int) (*TourDetail, bool, error)
 	GetTeams(tourID int32) ([]*Team, error)
-	CreateOrder(tourID int32, numRiders int, riders []Rider, total uint64, name, email, mobile, hotel, misc string) (int32, error)
+	CreateOrder(tourID int32, numRiders int, riders []Rider, total int64, name, email, mobile, hotel, misc string) (int32, error)
 	UpdateOrderPaymentRecorded(orderID int32) error
 	UpdateOrderConfirmationSent(orderID int32) error
 }
@@ -152,7 +152,7 @@ func (s *RemoteStore) GetTeams(tourID int32) ([]*Team, error) {
 	return teams, nil
 }
 
-func priceString(total uint64) string {
+func priceString(total int64) string {
 	return fmt.Sprintf("%d", total/100)
 }
 
@@ -175,7 +175,7 @@ func heightsString(riders []Rider) string {
 	return strings.Join(s, " ")
 }
 
-func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, tourID int32, numRiders int, riders []Rider, total uint64, name, email, mobile, hotel, misc string) (int32, error) {
+func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, tourID int32, numRiders int, riders []Rider, total int64, name, email, mobile, hotel, misc string) (int32, error) {
 	result, err := tx.Exec(
 		"INSERT INTO OrderMain (CustName, CustEmail, Hotel, Mobile, DatePlaced, Heights) VALUES (?, ?, ?, ?, ?, ?)",
 		name, email, hotel, mobile, time.Now(), heightsString(riders))
@@ -195,7 +195,7 @@ func (s *RemoteStore) prepareCreateOrder(tx *sql.Tx, tourID int32, numRiders int
 	return int32(orderID), nil
 }
 
-func (s *RemoteStore) CreateOrder(tourID int32, numRiders int, riders []Rider, total uint64, name, email, mobile, hotel, misc string) (int32, error) {
+func (s *RemoteStore) CreateOrder(tourID int32, numRiders int, riders []Rider, total int64, name, email, mobile, hotel, misc string) (int32, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return 0, err
