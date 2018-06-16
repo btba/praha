@@ -90,6 +90,7 @@ var knownConfCodes = map[string]bool{
 	"D-Irving":   true,
 	"E-Irving":   true,
 	"CPN":        true,
+	"ParkRow":    true,
 }
 
 func skipEmail(w map[warning]bool) bool {
