@@ -78,6 +78,7 @@ var knownConfCodes = map[string]bool{
 	"110SouthSt": true,
 	"124th":      true,
 	"60thSt":     true,
+	"A-56th":     true,
 	"A-Roger":    true,
 	"B-Carlos":   true,
 	"C-Roger":    true,
